@@ -1,0 +1,1425 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Musée virtuel immersif consacré au Cursinu, le chien corse.">
+<title>e-Musée Cursinu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Hanken+Grotesk:wght@400;500;600;700&family=Courier+Prime:wght@400;700&display=swap">
+<style>
+/* Concept : le paysage corse occupe tout l'écran ; l'heure avance d'un espace à l'autre (aube → crépuscule).
+   Le vrai modèle 3D du Cursinu guide la visite ; le paysage défile en parallaxe quand on le suit.
+   Les contenus s'ouvrent dans une vitrine en verre fumé. */
+:root{
+  --ink:#F4EFE6;
+  --ink-soft:#CBC4B6;
+  --ink-faint:#9A9385;
+  --glass:rgba(15,16,21,.66);
+  --glass-2:rgba(255,248,235,.055);
+  --line:rgba(244,239,230,.13);
+  --line-strong:rgba(244,239,230,.26);
+  --gold:#D9B45B;        /* immortelle du maquis */
+  --gold-ink:#1C1606;
+  --porphyre:#CF8E76;    /* granit rose de Piana */
+  --bg:#121419;
+  --f-display:"IM Fell English", "Iowan Old Style", Georgia, serif;
+  --f-body:"Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"Courier Prime", "Courier New", ui-monospace, monospace;
+  --ground:.80;
+  --topbar:66px;
+  color-scheme:dark;
+}
+html,body{height:100%;}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;overflow:hidden;-webkit-font-smoothing:antialiased;}
+*{box-sizing:border-box;}
+button{font:inherit;color:inherit;}
+a{color:var(--gold);}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4px;}
+sup{font-size:.62em;}
+
+#world{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0;}
+#world.hover{cursor:pointer;}
+body.no3d{background:linear-gradient(#2b3550,#c98a73 70%,#3a3a2a);}
+.grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.07;mix-blend-mode:overlay;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");}
+/* voile de lecture à gauche sur l'accueil */
+.vignette{position:fixed;inset:0;z-index:1;pointer-events:none;background:
+  radial-gradient(110% 85% at 0% 35%, rgba(8,9,12,.62), rgba(8,9,12,0) 58%),
+  linear-gradient(to bottom, rgba(8,9,12,.42), rgba(8,9,12,0) 20%),
+  linear-gradient(to top, rgba(8,9,12,.45), rgba(8,9,12,0) 24%),
+  radial-gradient(140% 100% at 50% 50%, rgba(0,0,0,0) 60%, rgba(0,0,0,.35));transition:opacity 1.2s;}
+body:not(.is-home) .vignette{opacity:.55;}
+
+/* ---------- barre du haut ---------- */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:20;height:calc(var(--topbar) + env(safe-area-inset-top,0px));
+  padding-top:env(safe-area-inset-top,0px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;align-items:center;gap:18px;}
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--ink);background:none;border:0;cursor:pointer;padding:0;text-align:left;}
+.brand .mark{width:34px;height:34px;border-radius:50%;border:1px solid var(--line-strong);display:grid;place-items:center;font-family:var(--f-display);font-size:19px;font-style:italic;color:var(--gold);}
+.brand .wm{display:flex;flex-direction:column;line-height:1.05;}
+.brand b{font-family:var(--f-display);font-weight:400;font-size:21px;}
+.brand small{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);margin-top:3px;}
+.rail{flex:1;display:flex;justify-content:center;min-width:0;}
+.rail ol{list-style:none;margin:0;padding:6px;display:flex;align-items:center;gap:2px;border:1px solid var(--line);border-radius:999px;background:rgba(14,15,19,.45);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
+.rail button{background:none;border:0;cursor:pointer;display:flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border-radius:999px;color:var(--ink-soft);transition:background .3s,color .3s;}
+.rail button:hover{color:var(--ink);}
+.rail .dot{width:24px;height:24px;border-radius:50%;border:1px solid var(--line-strong);display:grid;place-items:center;font-family:var(--f-display);font-size:12.5px;}
+.rail .lbl{font-size:12.5px;white-space:nowrap;}
+.rail button[aria-current="step"]{color:var(--gold-ink);background:var(--gold);}
+.rail button[aria-current="step"] .dot{border-color:rgba(28,22,6,.35);}
+.rail button.seen:not([aria-current]) .dot{border-color:rgba(217,180,91,.65);color:var(--gold);}
+.tools{display:flex;gap:6px;}
+.icon-btn{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:rgba(14,15,19,.45);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:grid;place-items:center;cursor:pointer;}
+.icon-btn:hover{border-color:var(--gold);}
+.icon-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+.icon-btn[aria-pressed="true"]{background:var(--gold);color:var(--gold-ink);border-color:var(--gold);}
+
+
+.dog-hint{position:fixed;z-index:6;pointer-events:none;font-family:var(--f-display);font-style:italic;font-size:17px;color:var(--ink);
+  text-shadow:0 1px 12px rgba(0,0,0,.7);transition:opacity .6s;display:flex;align-items:center;gap:9px;white-space:nowrap;transform:translate(-50%,-100%);}
+.dog-hint::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--gold);animation:ping 1.8s infinite;}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(217,180,91,.7)}100%{box-shadow:0 0 0 14px rgba(217,180,91,0)}}
+.loader{position:fixed;z-index:7;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:12px;
+  background:rgba(14,15,19,.7);border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-size:13px;color:var(--ink-soft);transition:opacity .6s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+.loader .bar{width:120px;height:3px;border-radius:3px;background:var(--line);overflow:hidden;}
+.loader .bar i{display:block;height:100%;width:0;background:var(--gold);transition:width .3s;}
+.loader b{font-family:var(--f-mono);font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums;}
+
+/* ---------- accueil ---------- */
+#hero{position:fixed;z-index:10;left:max(16px,env(safe-area-inset-left,0px));top:calc(var(--topbar) + env(safe-area-inset-top,0px) + 6vh);
+  width:min(560px,44vw);transition:opacity .8s ease,transform .8s ease;padding-left:clamp(0px,2vw,32px);}
+#hero.out{opacity:0;transform:translateY(16px);pointer-events:none;}
+.kicker{font-size:11.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);margin:0 0 18px;display:flex;align-items:center;gap:12px;}
+.kicker::after{content:"";width:46px;height:1px;background:var(--gold);opacity:.6;}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;text-wrap:balance;margin:0;}
+.display{font-size:clamp(46px,6.2vw,92px);line-height:.92;letter-spacing:-.01em;text-shadow:0 2px 30px rgba(0,0,0,.35);}
+.display em{display:block;color:var(--gold);font-style:italic;}
+.hero-lede{font-size:17.5px;line-height:1.55;max-width:44ch;margin:24px 0 0;color:var(--ink);text-shadow:0 1px 14px rgba(0,0,0,.5);}
+.cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px;}
+.stations{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin-top:38px;border-top:1px solid var(--line-strong);}
+.stations button{background:none;border:0;text-align:left;cursor:pointer;padding:12px 10px 4px 0;display:flex;flex-direction:column;gap:3px;min-width:0;}
+.stations .sn{font-family:var(--f-display);font-size:22px;color:var(--gold);line-height:1;}
+.stations .st{font-size:12.5px;color:var(--ink-soft);line-height:1.3;}
+.stations button:hover .st{color:var(--ink);}
+
+/* ---------- vitrine ---------- */
+#panel{position:fixed;z-index:10;top:calc(var(--topbar) + env(safe-area-inset-top,0px) + 6px);right:max(16px,env(safe-area-inset-right,0px));
+  bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(600px,47vw);
+  background:var(--glass);backdrop-filter:blur(24px) saturate(1.35);-webkit-backdrop-filter:blur(24px) saturate(1.35);
+  border:1px solid var(--line);border-radius:22px;display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.08);
+  transition:opacity .7s ease,transform .7s ease;}
+#panel.out{opacity:0;transform:translateX(24px);pointer-events:none;}
+.scroll{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:34px 34px 28px;min-height:0;position:relative;}
+.scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:rgba(244,239,230,.14);border-radius:8px}
+.numeral{position:absolute;top:6px;right:26px;font-family:var(--f-display);font-size:150px;line-height:1;color:var(--ink);opacity:.06;pointer-events:none;user-select:none;}
+.panel-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-top:1px solid var(--line);background:rgba(8,9,12,.3);}
+.eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin:0 0 12px;}
+h2{font-size:clamp(32px,3.4vw,46px);line-height:1.02;}
+h3{font-size:21px;line-height:1.2;}
+.co{font-family:var(--f-display);font-style:italic;color:var(--porphyre);font-size:19px;margin:8px 0 0;}
+.lede{font-size:16.5px;color:var(--ink);max-width:60ch;margin:18px 0 0;}
+.lede::first-letter{font-family:var(--f-display);float:left;font-size:3.3em;line-height:.82;padding:6px 8px 0 0;color:var(--gold);}
+p{max-width:62ch;}
+.muted{color:var(--ink-soft);}
+.sec{margin-top:32px;}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:14px;}
+.sec-h h3{font-size:20px;}
+.sec-h span{font-size:12px;color:var(--ink-faint);font-family:var(--f-mono);}
+
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;border:1px solid var(--line-strong);background:rgba(14,15,19,.35);padding:10px 18px;cursor:pointer;font-size:14px;font-weight:500;text-decoration:none;color:var(--ink);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:border-color .2s,background .2s;}
+.btn:hover{border-color:var(--ink-soft);}
+.btn.primary{background:var(--gold);color:var(--gold-ink);border-color:var(--gold);font-weight:600;}
+.btn.primary:hover{background:#e6c46c;}
+.btn[disabled]{opacity:.35;cursor:default;}
+.btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+
+/* frise */
+.frise{position:relative;margin:4px 0 0;padding:0 0 0 24px;list-style:none;}
+.frise::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:1px;background:linear-gradient(var(--gold),var(--porphyre));}
+.frise li{position:relative;padding:0 0 16px;}
+.frise li::before{content:"";position:absolute;left:-23px;top:7px;width:9px;height:9px;border-radius:50%;background:var(--bg);border:1.5px solid var(--gold);}
+.frise .d{font-family:var(--f-mono);font-size:13px;color:var(--gold);}
+.frise .t{display:block;}
+.frise li.key::before{background:var(--gold);box-shadow:0 0 0 4px rgba(217,180,91,.18);}
+
+/* documents */
+.screens{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.doc{position:relative;text-align:left;cursor:pointer;border:1px solid var(--line);border-radius:12px;background:rgba(255,248,235,.03);padding:0;overflow:hidden;display:flex;flex-direction:column;min-width:0;transition:border-color .25s,transform .25s;}
+.doc:hover{border-color:rgba(217,180,91,.55);transform:translateY(-2px);}
+.doc .thumb{aspect-ratio:4/3;max-width:100%;display:block;width:100%;}
+.doc .meta{padding:10px 12px 12px;display:flex;flex-direction:column;gap:3px;min-width:0;}
+.doc .k{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);}
+.doc .ti{font-family:var(--f-display);font-size:16.5px;line-height:1.2;}
+.doc .rf{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-soft);overflow-wrap:anywhere;}
+.badge{display:inline-block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px dashed rgba(207,142,118,.7);color:var(--porphyre);width:max-content;margin-top:4px;}
+.badge.ok{border-style:solid;border-color:rgba(217,180,91,.6);color:var(--gold);}
+
+.biblio{list-style:none;margin:0;padding:0;}
+.biblio li{border-top:1px solid var(--line);}
+.biblio li:last-child{border-bottom:1px solid var(--line);}
+.biblio button{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:baseline;background:none;border:0;width:100%;text-align:left;padding:11px 0;cursor:pointer;}
+.biblio .n{font-family:var(--f-mono);font-size:12px;color:var(--ink-faint);}
+.biblio .ti{font-family:var(--f-display);font-style:italic;font-size:17px;line-height:1.25;}
+.biblio .au{display:block;font-size:12.5px;color:var(--ink-soft);font-style:normal;font-family:var(--f-body);}
+.biblio button:hover .ti{color:var(--gold);}
+
+.tabs{display:flex;gap:2px;flex-wrap:wrap;margin:24px 0 18px;border-bottom:1px solid var(--line);}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:8px 10px;cursor:pointer;color:var(--ink-soft);font-size:13.5px;margin-bottom:-1px;}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--gold);}
+.spec{display:grid;grid-template-columns:auto 1fr;gap:7px 18px;font-size:14px;margin:0;}
+.spec dt{color:var(--ink-faint);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;padding-top:3px;}
+.spec dd{margin:0;}
+.swatches{display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 6px;}
+.sw{display:flex;align-items:center;gap:7px;font-size:13px;}
+.sw i{width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.25);display:block;}
+.std-card{position:relative;border:1px solid rgba(217,180,91,.4);border-radius:14px;overflow:hidden;cursor:pointer;background:radial-gradient(120% 120% at 70% 30%,#3a3326,#16171c 70%);display:grid;grid-template-columns:1fr auto;align-items:end;gap:12px;padding:20px;min-height:170px;text-align:left;width:100%;}
+.std-card img{position:absolute;right:-10px;bottom:-6px;height:115%;max-width:none;opacity:.95;pointer-events:none;}
+.std-card .t{position:relative;z-index:1;max-width:60%;}
+.std-card .t b{font-family:var(--f-display);font-weight:400;font-size:24px;display:block;line-height:1.1;}
+.std-card .t span{font-size:13px;color:var(--ink-soft);}
+.std-card:hover{border-color:var(--gold);}
+
+/* carte */
+.map-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:18px;align-items:start;}
+.map svg{width:100%;height:auto;display:block;max-width:100%;}
+.map .isle{fill:rgba(244,239,230,.07);stroke:rgba(244,239,230,.55);stroke-width:1.2;}
+.map .relief{fill:none;stroke:rgba(244,239,230,.16);stroke-width:1;}
+.map .pt{cursor:pointer;}
+.map .pt circle.c{fill:var(--gold);stroke:#1a1606;stroke-width:1.5;}
+.map .pt circle.r{fill:none;stroke:var(--gold);opacity:.6;transform-box:fill-box;transform-origin:center;animation:ring 2.6s ease-out infinite;}
+.map .pt text{fill:var(--ink);font-family:var(--f-body);font-size:10.5px;paint-order:stroke;stroke:rgba(15,16,20,.85);stroke-width:3px;}
+.map .pt.on circle.c{fill:var(--porphyre);}
+.map .pt:focus-visible circle.c{stroke:var(--ink);stroke-width:3;}
+@keyframes ring{0%{transform:scale(1);opacity:.7}100%{transform:scale(2.6);opacity:0}}
+.fiche{border:1px solid var(--line);border-radius:12px;padding:16px;background:rgba(255,248,235,.03);min-width:0;}
+.fiche .k{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin:0;}
+.fiche h3{margin:6px 0 4px;}
+.fiche .place{font-family:var(--f-mono);font-size:12px;color:var(--ink-soft);margin:0;}
+
+/* livre d'or */
+.form{display:grid;gap:12px;margin-top:6px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+label{display:grid;gap:5px;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);}
+input,textarea{font:inherit;font-size:15px;letter-spacing:0;text-transform:none;color:var(--ink);background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0;}
+textarea{min-height:110px;resize:vertical;font-family:var(--f-display);font-size:17px;line-height:1.4;}
+input:focus,textarea:focus{outline:none;border-color:var(--gold);}
+.note{font-size:12.5px;color:var(--ink-faint);}
+.entries{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:14px;}
+.entry{border-left:2px solid var(--porphyre);padding:4px 0 4px 14px;}
+.entry q{font-family:var(--f-display);font-size:18px;line-height:1.35;quotes:"« " " »";display:block;}
+.entry .who{font-size:12.5px;color:var(--ink-soft);margin-top:4px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.entry .del{background:none;border:0;color:var(--ink-faint);cursor:pointer;font-size:12px;text-decoration:underline;padding:0;}
+.empty{border:1px dashed var(--line);border-radius:12px;padding:16px;color:var(--ink-soft);font-size:14px;}
+.credits{font-size:12.5px;color:var(--ink-faint);margin-top:34px;border-top:1px solid var(--line);padding-top:14px;}
+
+/* ---------- modales ---------- */
+.veil{position:fixed;inset:0;z-index:40;background:rgba(8,9,12,.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:grid;place-items:center;
+  padding:calc(16px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));}
+.modal{width:min(720px,100%);max-height:100%;overflow:auto;background:#1A1B21;border:1px solid var(--line);border-radius:16px;padding:26px;position:relative;}
+.modal .x{position:absolute;top:14px;right:14px;}
+.viewer-frame{margin:16px 0;border-radius:10px;overflow:hidden;border:1px solid var(--line);}
+.viewer-frame svg{display:block;width:100%;height:auto;max-width:100%;}
+.search-in{font-size:18px;padding:12px 14px;}
+.results{list-style:none;margin:14px 0 0;padding:0;}
+.results li button{width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:10px 2px;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:10px;}
+.results li button:hover .rt{color:var(--gold);}
+.results .rt{font-family:var(--f-display);font-size:17px;}
+.results .rs{font-size:12px;color:var(--ink-faint);display:block;}
+.results .rk{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-soft);white-space:nowrap;}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.chip{border:1px solid var(--line);border-radius:999px;background:none;padding:4px 11px;font-size:12.5px;cursor:pointer;color:var(--ink-soft);}
+.chip[aria-pressed="true"]{border-color:var(--gold);color:var(--gold);}
+
+/* ---------- visionneuse du standard 3D ---------- */
+#std{position:fixed;inset:0;z-index:15;background:radial-gradient(110% 90% at 38% 40%,#2e2a22 0%,#16171c 55%,#0f1014 100%);display:grid;grid-template-columns:minmax(0,1fr) 380px;
+  padding-top:calc(var(--topbar) + env(safe-area-inset-top,0px));}
+#std[hidden]{display:none!important;}
+.std-stage{position:relative;min-width:0;min-height:0;}
+#stdCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none;}
+#stdCanvas:active{cursor:grabbing;}
+.hs-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+.hs{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:0;padding:0;cursor:pointer;pointer-events:auto;background:rgba(217,180,91,.22);display:grid;place-items:center;transition:transform .2s,opacity .3s;}
+.hs::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 2px rgba(20,16,4,.6);}
+.hs:hover,.hs.on{transform:scale(1.25);}
+.hs.on{background:rgba(217,180,91,.4);}
+.hs.behind{opacity:.25;}
+.hs-label{position:absolute;transform:translate(14px,-50%);font-size:12px;white-space:nowrap;pointer-events:none;background:rgba(14,15,19,.8);border:1px solid var(--line);border-radius:6px;padding:2px 8px;opacity:0;transition:opacity .2s;}
+.hs:hover + .hs-label,.hs.on + .hs-label{opacity:1;}
+.std-ctrl{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.std-ctrl .note{background:rgba(14,15,19,.6);padding:6px 10px;border-radius:999px;}
+.std-side{background:rgba(17,18,23,.86);border-left:1px solid var(--line);overflow-y:auto;padding:26px 24px calc(24px + env(safe-area-inset-bottom,0px));min-width:0;padding-right:max(24px,env(safe-area-inset-right,0px));}
+.std-side h2{font-size:34px;}
+.regs{display:flex;flex-wrap:wrap;gap:6px;margin:18px 0;}
+.regs button{border:1px solid var(--line);border-radius:999px;background:none;padding:5px 11px;font-size:12.5px;cursor:pointer;color:var(--ink-soft);}
+.regs button[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:var(--gold-ink);}
+.reg-card{border-top:1px solid var(--line);padding-top:16px;}
+.reg-card h3{font-size:26px;}
+.reg-card p{font-size:15px;}
+.reg-nav{display:flex;justify-content:space-between;gap:8px;margin-top:18px;}
+.std-close{position:absolute;top:calc(var(--topbar) + env(safe-area-inset-top,0px) + 12px);left:max(16px,env(safe-area-inset-left,0px));z-index:2;}
+
+.toast{position:fixed;left:50%;bottom:calc(70px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:#262730;border:1px solid var(--line);border-radius:999px;padding:9px 16px;font-size:14px;transition:opacity .4s;max-width:calc(100% - 32px);}
+
+/* ---------- mobile ---------- */
+@media (max-width:760px){
+  :root{--ground:.42;--topbar:60px;}
+  .rail .lbl{display:none;}
+  .rail button{padding:3px;}
+  .brand .wm{display:none;}
+  #panel,#hero{left:0;right:0;width:auto;top:auto;bottom:0;height:56%;border-radius:20px 20px 0 0;border:1px solid var(--line);border-bottom:0;}
+  #hero{background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);overflow-y:auto;padding:26px max(18px,env(safe-area-inset-right,0px)) calc(22px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));}
+  #panel.out{transform:translateY(24px);}
+  .display{font-size:48px;}
+  .hero-lede{font-size:16px;margin-top:16px;}
+  .stations{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .panel-foot{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));}
+  .panel-foot .note{display:none;}
+  .scroll{padding:24px max(18px,env(safe-area-inset-right,0px)) 20px max(18px,env(safe-area-inset-left,0px));}
+  .numeral{font-size:110px;right:14px;}
+  .map-wrap{grid-template-columns:1fr;}
+  .row2{grid-template-columns:1fr;}
+  .tools .hide-sm{display:none;}
+  #std{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) 46%;}
+  .std-side{border-left:0;border-top:1px solid var(--line);padding:18px max(18px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));}
+  .std-side h2{font-size:26px;}
+  .std-ctrl .note{display:none;}
+  .std-card img{height:90%;}
+}
+@media (max-width:420px){ .screens{grid-template-columns:1fr;} }
+@media (prefers-reduced-motion:reduce){
+  #panel,#hero,#dogSvg{transition:none;}
+  .map .pt circle.r,.dog-hint::before,#dogSvg .leg{animation:none!important;}
+}
+</style>
+</head>
+<body>
+<canvas id="world" aria-label="Paysage corse en 3D. Cliquez sur le Cursinu pour le suivre."></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="topbar">
+  <button class="brand" id="homeBrand" aria-label="Retour à l'accueil"><span class="mark">C</span><span class="wm"><b>e-Musée Cursinu</b><small>Le chien corse · mémoire vivante</small></span></button>
+  <nav class="rail" aria-label="Espaces de la visite"><ol id="rail"></ol></nav>
+  <div class="tools">
+    <button class="icon-btn" id="btnStd" aria-label="Standard 3D interactif" title="Standard 3D interactif"><svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></button>
+    <button class="icon-btn" id="btnSearch" aria-label="Recherche documentaire" title="Recherche documentaire"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></button>
+    <button class="icon-btn" id="btnSound" aria-pressed="false" aria-label="Ambiance sonore" title="Ambiance sonore"><svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg></button>
+    <button class="icon-btn hide-sm" id="btnHome" aria-label="Retour rapide à l'accueil" title="Retour rapide à l'accueil"><svg viewBox="0 0 24 24"><path d="M4 11l8-6.5 8 6.5"/><path d="M6.5 9.5V19h11V9.5"/></svg></button>
+  </div>
+</header>
+
+<div class="dog-hint" id="dogHint">Cliquez sur le Cursinu pour le suivre</div>
+<div class="loader" id="loader" role="status"><span id="loaderLabel">Le paysage se dessine</span><span class="bar"><i id="loadBar"></i></span><b id="loadPct">0 %</b></div>
+
+<section id="hero" aria-labelledby="heroTitle">
+  <p class="kicker">E-Musée · Patrimoine de Corse</p>
+  <h1 class="display" id="heroTitle">Sur les pas <em>du Cursinu</em></h1>
+  <p class="hero-lede">Il connaît les sentiers mieux que nous. Depuis des siècles, il marche devant les bergers et les chasseurs de l'île. Entrez dans le paysage et suivez-le&nbsp;: des premières traces jusqu'aux témoignages d'aujourd'hui.</p>
+  <div class="cta">
+    <button class="btn primary" data-go="1">Suivre le Cursinu<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+    <button class="btn" data-std="general">Le standard en 3D</button>
+  </div>
+  <div class="stations" id="stations"></div>
+</section>
+
+<main id="panel" class="out" aria-live="polite">
+  <div class="scroll" id="scroll"></div>
+  <div class="panel-foot">
+    <button class="btn" id="prev"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Revenir</button>
+    <span class="note" id="where"></span>
+    <button class="btn primary" id="next">Espace suivant</button>
+  </div>
+</main>
+
+<section id="std" hidden aria-label="Standard du Cursinu en 3D">
+  <div class="std-stage">
+    <canvas id="stdCanvas" aria-label="Modèle 3D du Cursinu. Faites glisser pour tourner autour."></canvas>
+    <div class="hs-layer" id="hsLayer"></div>
+    <div class="std-ctrl">
+      <button class="btn" id="stdReset"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg>Vue d'ensemble</button>
+      <button class="btn" id="stdSpin" aria-pressed="true">Rotation automatique</button>
+      <span class="note">Glisser pour tourner · molette ou pincement pour zoomer</span>
+    </div>
+  </div>
+  <aside class="std-side">
+    <p class="eyebrow">Interprétation interactive</p>
+    <h2>Le standard du Cursinu</h2>
+    <p class="muted" style="font-size:14px;margin:8px 0 0">Choisissez une région du corps ou touchez un point doré sur le modèle.</p>
+    <div class="regs" id="regs"></div>
+    <div class="reg-card" id="regCard"></div>
+    <p class="note" style="margin-top:22px">Modèle 3D&nbsp;: Jean Dominique Rossi et la société Arobase (cursinu.corsica). Textes&nbsp;: synthèse de la description de la race, à remplacer par le texte officiel du standard SCC.</p>
+  </aside>
+  <button class="icon-btn std-close" id="stdClose" aria-label="Fermer le standard 3D"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</section>
+
+<div class="veil" id="viewer" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="vTitle" id="viewerBody"></div></div>
+<div class="veil" id="search" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sTitle">
+    <button class="icon-btn x" data-close aria-label="Fermer"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <p class="eyebrow">Fonds documentaire</p>
+    <h2 id="sTitle" style="font-size:34px">Recherche documentaire</h2>
+    <p class="muted" style="margin:6px 0 14px">Tous les documents du musée, quel que soit l'espace où ils sont exposés.</p>
+    <input class="search-in" id="q" type="search" placeholder="Auteur, titre, lieu, mot-clé…" aria-label="Rechercher dans le fonds">
+    <div class="filters" id="filters"></div>
+    <ul class="results" id="results"></ul>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* =========================================================
+   DONNÉES
+   ========================================================= */
+const SPACES = [
+  {id:"accueil", n:"", short:"Accueil", title:"Sur les pas du Cursinu"},
+  {id:"origines", n:"I", short:"Il vient de loin", title:"Il vient de loin", sub:"Les origines, avant la reconnaissance"},
+  {id:"casetta", n:"II", short:"La casetta", title:"A casetta di u Cursinu", sub:"Bibliothèque, films, standard 3D"},
+  {id:"territoire", n:"III", short:"Le territoire", title:"Le Cursinu dans son territoire", sub:"La carte des récits"},
+  {id:"livre", n:"IV", short:"Livre d'or", title:"Le Cursinu s'éloigne", sub:"Laisser un mot"}
+];
+
+const REGIONS = [
+  {id:"general", label:"Aspect général", text:"Chien rustique et robuste, de taille moyenne, à l'allure puissante sans lourdeur. Type lupoïde. Taille au garrot : 46 à 58 cm chez le mâle, 46 à 55 cm chez la femelle. Poids : 23 à 28 kg chez le mâle, 20 à 25 kg chez la femelle."},
+  {id:"face", label:"Région faciale", text:"Museau assez fin et stop peu marqué. Truffe noire, large, aux narines bien ouvertes. Yeux ovales, légèrement obliques, de couleur noisette à marron foncé."},
+  {id:"crane", label:"Région crânienne", text:"Crâne presque plat. Oreilles triangulaires de longueur moyenne, attachées au niveau ou au-dessus de la ligne de l'œil ; tombantes ou semi-tombantes, cassées en V ou repliées en rose."},
+  {id:"cou", label:"Cou", text:"Court et musclé, couvert d'une peau épaisse et tendue."},
+  {id:"ligne-dessus", label:"Ligne du dessus", text:"Dos droit et puissamment musclé. Croupe courte, musclée, légèrement inclinée."},
+  {id:"poitrine", label:"Poitrine", text:"Large et haute, descendant bien vers le coude."},
+  {id:"ligne-dessous", label:"Ligne du dessous", text:"Ventre moyennement relevé."},
+  {id:"fouet", label:"Fouet", text:"Queue épaisse et touffue, longue ou de longueur moyenne. Tombante ou enroulée au repos, enroulée sur le dos ou sur la croupe en action. L'enroulement en anneau serré est recherché."},
+  {id:"membre_ante", label:"Membres antérieurs", text:"Longs et musclés. Allure régulière et souple au pas comme au trot."},
+  {id:"membre_poste", label:"Membres postérieurs", text:"Longs et musclés. Le galop est court, saccadé et sautillant, caractéristique de la race."},
+  {id:"peau", label:"Peau", text:"Épaisse et bien tendue, notamment au niveau du cou."},
+  {id:"robe", label:"Robe", text:"Le fauve bringé est le plus courant. Toutes les nuances de fauve sont admises, ainsi que le sable charbonné et le noir marqué de fauve ou de sable. Masque accepté ; panachure limitée à la poitrine et aux extrémités des membres. Poil bien fourni, court à mi-long, parfois frangé."},
+  {id:"genital", label:"Organe génital", text:"Chez le mâle, deux testicules d'aspect normal, complètement descendus dans le scrotum, comme l'exigent tous les standards de la Société Centrale Canine."},
+];
+
+const DOCS = [
+  {id:"these", space:1, type:"Thèse", title:"Le chien corse : « U Cursinu »", ref:"Thèse vétérinaire — Martine Rigaud", desc:"Étude vétérinaire consacrée au chien corse, l'un des premiers travaux scientifiques sur la race. Référence majeure des travaux préparatoires à la reconnaissance.", status:"a-verser", thumb:"book"},
+  {id:"presse-anc", space:1, type:"Article de presse", title:"Articles anciens sur le chien corse", ref:"Presse insulaire, avant 2003", desc:"Coupures de presse évoquant le chien des bergers et des chasseurs, sa raréfaction et les premiers efforts de sauvegarde.", status:"a-verser", thumb:"press"},
+  {id:"photo-berger", space:1, type:"Photographie ancienne", title:"Berger et son chien en estive", ref:"Fonds familial — à identifier", desc:"Photographie argentique d'un berger accompagné de son chien lors de la montée aux bergeries. Lieu et date à documenter.", status:"a-verser", thumb:"photo1"},
+  {id:"photo-chasse", space:1, type:"Photographie ancienne", title:"Battue au sanglier", ref:"Fonds familial — à identifier", desc:"Groupe de chasseurs et leurs chiens au retour d'une battue. Le Cursinu servait au sanglier, au renard et au lièvre.", status:"a-verser", thumb:"photo2"},
+  {id:"recit", space:1, type:"Tradition orale", title:"Récits de village", ref:"Collecte orale — à enregistrer", desc:"Souvenirs d'anciens sur le chien de la maison : la garde du troupeau, la chasse, la vie au village.", status:"a-verser", thumb:"voice"},
+  {id:"asso-1989", space:1, type:"Archive", title:"Création de l'association de sauvegarde (1989)", ref:"Archives associatives", desc:"Statuts et premiers comptes rendus de l'association de sauvegarde du chien corse fondée en 1989 : recensement des sujets, premiers critères de sélection.", status:"a-verser", thumb:"archive"},
+  {id:"b1", space:2, tab:"bib", type:"Livre", title:"Le Chien : morphologie extérieure esthétique", ref:"M. Luquet", desc:"Ouvrage de référence en morphologie canine, utilisé pour l'interprétation du standard.", status:"a-verser"},
+  {id:"b2", space:2, tab:"bib", type:"Livre", title:"Le chien : morphologie, esthétique, jugement", ref:"Société Centrale Canine", desc:"Manuel de la SCC sur la morphologie et le jugement des chiens.", status:"a-verser"},
+  {id:"b3", space:2, tab:"bib", type:"Livre", title:"Dictionnaire encyclopédique des termes canins", ref:"Raymond Triquet", desc:"Dictionnaire de référence du vocabulaire cynologique.", status:"a-verser"},
+  {id:"b4", space:2, tab:"bib", type:"Livre", title:"Les couleurs de robes chez le chien", ref:"Pr Bernard Denis", desc:"Étude des couleurs de robe, utile pour décrire le fauve bringé et le sable charbonné du Cursinu.", status:"a-verser"},
+  {id:"b5", space:2, tab:"bib", type:"Livre", title:"Éléments de cynotechnie à l'usage des juges et experts confirmateurs", ref:"Société Centrale Canine", desc:"Guide technique à destination des juges.", status:"a-verser"},
+  {id:"b6", space:2, tab:"bib", type:"Livre", title:"Le pointer : ébauche de description des caractères ethniques", ref:"Giuseppe Solaro", desc:"Méthode de description des caractères ethniques d'une race.", status:"a-verser"},
+  {id:"b7", space:2, tab:"bib", type:"Thèse", title:"Le chien corse : « U Cursinu »", ref:"Martine Rigaud, thèse vétérinaire", desc:"Voir aussi l'espace I.", status:"a-verser"},
+  {id:"b8", space:2, tab:"bib", type:"Standard", title:"Le standard du chien corse : Cursinu", ref:"Société Centrale Canine", desc:"Texte officiel du standard de la race.", status:"a-verser"},
+  {id:"b9", space:2, tab:"bib", type:"Livre", title:"Le Cursinu", ref:"Jean Dominique Rossi", desc:"Ouvrage consacré à la race.", status:"a-verser"},
+  {id:"b10", space:2, tab:"bib", type:"Livre", title:"Le petit standard illustré du cursinu", ref:"Jean Dominique Rossi", desc:"Lecture illustrée du standard, région par région.", status:"a-verser"},
+  {id:"v1", space:2, tab:"video", type:"Standard 3D", title:"Le standard du Cursinu en 3D", ref:"J.-D. Rossi & Arobase", desc:"Le modèle 3D du standard se manipule à 360° ; chacune des 13 régions du corps renvoie à sa description.", status:"std", thumb:"3d"},
+  {id:"v2", space:2, tab:"video", type:"Reportage", title:"Reportages télévisés", ref:"Télévisions régionales — à verser", desc:"Reportages consacrés au Cursinu et à sa sauvegarde.", status:"a-verser", thumb:"film"},
+  {id:"v3", space:2, tab:"video", type:"Vidéo", title:"Expositions et concours", ref:"Manifestations canines — à verser", desc:"Présentations en ring, jugements et expositions de race.", status:"a-verser", thumb:"film"},
+  {id:"v4", space:2, tab:"video", type:"Interview", title:"Paroles d'éleveurs", ref:"Entretiens filmés — à réaliser", desc:"Éleveurs et propriétaires racontent leur chien, la sélection, le travail au troupeau.", status:"a-verser", thumb:"voice"},
+  {id:"d1", space:2, tab:"dossier", type:"Dossier officiel", title:"Dossier de reconnaissance SCC (2003)", ref:"Société Centrale Canine", desc:"Pièces du dossier ayant conduit à la reconnaissance de la race en 2003, classée dans le groupe des spitz et types primitifs.", status:"a-verser", thumb:"archive"},
+  {id:"d2", space:2, tab:"dossier", type:"Planche", title:"Schéma morphologique du Cursinu", ref:"cursinu.corsica", desc:"Schéma des points du standard, tiré du projet 3D.", status:"lien", url:"https://cursinu.corsica/", thumb:"schema"},
+  {id:"d3", space:2, tab:"dossier", type:"Planche", title:"Planche des couleurs de robe", ref:"Claudine Rossi", desc:"Planche illustrant les robes admises par le standard.", status:"a-verser", thumb:"swatch"},
+  {id:"p1", space:2, tab:"photo", type:"Photographie", title:"Cursini d'aujourd'hui", ref:"Rachel Bacciochi, Stéphanie Roig — à verser", desc:"Portraits récents de chiens, dont la variante poil mi-long.", status:"a-verser", thumb:"photo3"},
+  {id:"p2", space:2, tab:"photo", type:"Photographie", title:"Au travail sur le troupeau", ref:"Éleveurs — à verser", desc:"Le Cursinu dans son rôle de chien de conduite.", status:"a-verser", thumb:"photo1"},
+  {id:"p3", space:2, tab:"photo", type:"Photographie", title:"Chiots", ref:"Éleveurs — à verser", desc:"Portées et jeunes sujets.", status:"a-verser", thumb:"photo2"},
+  {id:"o1", space:2, tab:"objets", type:"Objet", title:"Objets de berger", ref:"Collection — à numériser en 3D", desc:"Colliers, sonnailles et objets du quotidien pastoral associés au chien.", status:"a-verser", thumb:"object"},
+  {id:"o2", space:2, tab:"objets", type:"Œuvre", title:"Œuvres d'artistes", ref:"Peintures, dessins, sculptures — à verser", desc:"Le Cursinu vu par les artistes insulaires.", status:"a-verser", thumb:"art"},
+  {id:"o3", space:2, tab:"objets", type:"Artisanat", title:"Artisanat corse", ref:"Artisans — à verser", desc:"Pièces artisanales représentant le chien corse.", status:"a-verser", thumb:"object"},
+];
+
+const PLACES = [
+  {id:"appietto", name:"Appietto", x:94, y:330, kind:"Article de presse", title:"Le Cursinu mis à l'honneur à Appietto", text:"Reportage photo de Corse Net Infos sur une journée consacrée au Cursinu à Appietto.", link:"https://www.corsenetinfos.corsica/EN-IMAGES-A-Appietto-le-cursinu-mis-a-l-honneur_a87031.html", sample:false},
+  {id:"niolu", name:"Niolu", x:118, y:212, kind:"Témoignage", title:"La transhumance", text:"Emplacement pour le témoignage d'un berger du Niolu : la montée aux estives, le chien qui ramène les bêtes égarées dans la brume.", sample:true},
+  {id:"castagniccia", name:"Castagniccia", x:185, y:205, kind:"Histoire locale", title:"Sous les châtaigniers", text:"Emplacement pour une histoire de village : le chien de garde de la maison et des porcs en liberté sous la châtaigneraie.", sample:true},
+  {id:"corte", name:"Corte", x:148, y:240, kind:"Enregistrement sonore", title:"Paroles d'anciens", text:"Emplacement pour un enregistrement en langue corse : souvenirs du chien de la famille, collectés auprès d'anciens du Centre Corse.", sample:true},
+  {id:"balagna", name:"Balagne", x:92, y:142, kind:"Photographie", title:"Le chien de la bergerie", text:"Emplacement pour une photographie ancienne d'une bergerie de Balagne et de son chien.", sample:true},
+  {id:"sartene", name:"Sartène", x:130, y:420, kind:"Anecdote", title:"La battue", text:"Emplacement pour une anecdote de chasse au sanglier dans le Sartenais.", sample:true},
+  {id:"bastia", name:"Bastia", x:210, y:126, kind:"Vidéo", title:"Exposition canine", text:"Emplacement pour une vidéo d'exposition ou de présentation de la race.", sample:true},
+  {id:"portovecchio", name:"Porto-Vecchio", x:200, y:405, kind:"Témoignage", title:"Un éleveur raconte", text:"Emplacement pour le témoignage d'un éleveur de l'Extrême-Sud.", sample:true},
+];
+
+/* =========================================================
+   VIGNETTES SVG
+   ========================================================= */
+function thumb(kind){
+  const sepia = (inner)=>`<svg class="thumb" viewBox="0 0 160 120" aria-hidden="true"><rect width="160" height="120" fill="#2a241d"/><rect x="10" y="9" width="140" height="102" fill="#B9A585"/><g opacity=".9">${inner}</g><rect x="10" y="9" width="140" height="102" fill="none" stroke="#efe6d2" stroke-width="5"/></svg>`;
+  const ridge = '<path d="M15 80 L45 52 L62 64 L88 40 L115 62 L145 50 L145 106 L15 106 Z" fill="#8a7458"/><path d="M15 92 C50 84 90 96 145 86 L145 106 L15 106Z" fill="#6c5a44"/>';
+  const dogS = (x,y,s,c="#3c2f22")=>`<g transform="translate(${x} ${y}) scale(${s})" fill="${c}"><path d="M10 10 C18 6 34 6 42 7 L46 3 L47 -4 L50 2 L53 -4 L54 3 C57 5 60 7 62 9 C60 11 55 11 52 12 L46 16 L44 26 L40 26 L40 17 C32 18 24 18 17 18 L15 26 L11 26 L11 17 C6 16 4 18 2 24 C2 16 5 12 10 10Z"/></g>`;
+  switch(kind){
+    case "photo1": return sepia(ridge + dogS(70,68,.7) + '<g fill="#3c2f22"><rect x="44" y="56" width="7" height="22"/><circle cx="47.5" cy="52" r="4.5"/></g><g fill="#d7cbb3"><circle cx="100" cy="90" r="4"/><circle cx="110" cy="92" r="4"/><circle cx="118" cy="88" r="4"/></g>');
+    case "photo2": return sepia('<path d="M10 70 C40 60 70 66 150 58 L150 111 L10 111Z" fill="#7d6a50"/><g fill="#3c2f22"><rect x="40" y="48" width="8" height="26"/><circle cx="44" cy="44" r="5"/><rect x="60" y="46" width="8" height="28"/><circle cx="64" cy="42" r="5"/><rect x="82" y="49" width="8" height="25"/><circle cx="86" cy="45" r="5"/></g>' + dogS(98,70,.55) + dogS(28,76,.5));
+    case "photo3": return sepia('<rect x="10" y="9" width="140" height="102" fill="#a59173"/>' + dogS(38,50,1.25));
+    case "book": return `<svg class="thumb" viewBox="0 0 160 120" aria-hidden="true"><rect width="160" height="120" fill="#2b2d33"/><rect x="48" y="14" width="64" height="92" rx="2" fill="#5b2f2a"/><rect x="52" y="14" width="4" height="92" fill="#43221e"/><rect x="62" y="30" width="42" height="1.5" fill="#D9B45B"/><rect x="62" y="64" width="42" height="1.5" fill="#D9B45B"/><text x="83" y="47" text-anchor="middle" font-family="IM Fell English,serif" font-size="9" fill="#ead9b0">U CURSINU</text><text x="83" y="57" text-anchor="middle" font-family="IM Fell English,serif" font-size="6" fill="#ead9b0" font-style="italic">thèse vétérinaire</text></svg>`;
+    case "press": return `<svg class="thumb" viewBox="0 0 160 120" aria-hidden="true"><rect width="160" height="120" fill="#2b2d33"/><g transform="rotate(-4 80 60)"><rect x="22" y="12" width="116" height="96" fill="#E2D8C2"/><rect x="30" y="20" width="100" height="9" fill="#3a332a"/><rect x="30" y="34" width="58" height="40" fill="#a8977a"/>${[0,1,2,3,4,5,6,7].map(i=>`<rect x="94" y="${34+i*5}" width="36" height="2" fill="#8d806a"/>`).join("")}${[0,1,2,3,4].map(i=>`<rect x="30" y="${80+i*5}" width="100" height="2" fill="#8d806a"/>`).join("")}</g></svg>`;
+    case "voice": return `<svg class="thumb" viewBox="0 0 160 120" aria-hidden="true"><rect width="160" height="120" fill="#22252b"/>${Array.from({length:30},(_,i)=>{const h=8+Math.abs(Math.sin(i*1.7)*30)+Math.abs(Math.cos(i*.6)*12);return `<rect x="${20+i*4}" y="${60-h/2}" width="2.2" height="${h}" rx="1" fill="#D9B45B" opacity="${(.45+.5*Math.abs(Math.sin(i))).toFixed(2)}"/>`}).join("")}</svg>`;
+    case "archive": return `<svg class="thumb" viewBox="0 0 160 120" aria-hidden="true"><rect width="160" height="120" fill="#2b2d33"/><rect x="34" y="22" width="88" height="80" fill="#cfc3a6"/><rect x="40" y="16" width="88" height="80" fill="#E7DFCD"/>${[0,1,2,3,4,5,6,7,8].map(i=>`<rect x="50" y="${30+i*7}" width="${i==0?40:68-(i%3)*8}" height="2" fill="#7b705d"/>`).join("")}<circle cx="110" cy="84" r="9" fill="none" stroke="#9b3b2c" stroke-width="2"/></svg>`;
+    case "3d": return `<svg class="thumb" viewBox="0 0 160 120" aria-hidden="true"><rect width="160" height="120" fill="#16171c"/><ellipse cx="80" cy="96" rx="52" ry="9" fill="none" stroke="#D9B45B" stroke-dasharray="3 4"/>${dogS(32,34,1.5,"#8a5a33")}<circle cx="58" cy="52" r="3" fill="#D9B45B"/><circle cx="104" cy="40" r="3" fill="#D9B45B"/><circle cx="92" cy="70" r="3" fill="#D9B45B"/><text x="146" y="20" text-anchor="end" font-family="Courier Prime,monospace" font-size="9" fill="#D9B45B">360°</text></svg>`;
+    case "film": return `<svg class="thumb" viewBox="0 0 160 120" aria-hidden="true"><rect width="160" height="120" fill="#1d1f24"/>${[0,1,2,3,4,5,6,7].map(i=>`<rect x="${8+i*19}" y="8" width="10" height="7" rx="1" fill="#3a3c43"/><rect x="${8+i*19}" y="105" width="10" height="7" rx="1" fill="#3a3c43"/>`).join("")}<rect x="8" y="22" width="144" height="76" fill="#3b3f46"/><path d="M70 46 L94 60 L70 74Z" fill="#D9B45B"/></svg>`;
+    case "schema": return `<svg class="thumb" viewBox="0 0 160 120" aria-hidden="true"><rect width="160" height="120" fill="#E7DFCD"/><g transform="translate(30 38) scale(1.55)" fill="none" stroke="#3c2f22" stroke-width=".9"><path d="M10 10 C18 6 34 6 42 7 L46 3 L47 -4 L50 2 L53 -4 L54 3 C57 5 60 7 62 9 C60 11 55 11 52 12 L46 16 L44 26 L40 26 L40 17 C32 18 24 18 17 18 L15 26 L11 26 L11 17 C6 16 4 18 2 24 C2 16 5 12 10 10Z"/></g>${[[40,30,"1"],[78,26,"2"],[112,22,"3"],[60,82,"4"],[100,84,"5"]].map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="6" fill="#9b3b2c"/><text x="${p[0]}" y="${p[1]+3}" text-anchor="middle" font-size="8" fill="#fff" font-family="Courier Prime,monospace">${p[2]}</text>`).join("")}</svg>`;
+    case "swatch": return `<svg class="thumb" viewBox="0 0 160 120" aria-hidden="true"><rect width="160" height="120" fill="#E7DFCD"/>${[["#8a5a33",1],["#c9955a",0],["#7c6a52",2],["#1e1916",3]].map((c,i)=>`<circle cx="${34+i*31}" cy="56" r="13" fill="${c[0]}" stroke="#3c2f22" stroke-width=".6"/>${c[1]===1?`<path d="M${26+i*31} 46 L${32+i*31} 68 M${32+i*31} 44 L${38+i*31} 68 M${38+i*31} 45 L${42+i*31} 64" stroke="#3a2416" stroke-width="1.6"/>`:""}${c[1]===3?`<path d="M${24+i*31} 60 a10 6 0 0 0 20 0" fill="#c9955a"/>`:""}`).join("")}<text x="80" y="92" text-anchor="middle" font-family="IM Fell English,serif" font-size="8.5" fill="#3c2f22" font-style="italic">fauve bringé · fauve · sable charbonné · noir marqué</text></svg>`;
+    case "object": return `<svg class="thumb" viewBox="0 0 160 120" aria-hidden="true"><rect width="160" height="120" fill="#24262c"/><ellipse cx="80" cy="96" rx="40" ry="6" fill="#000" opacity=".35"/><path d="M62 40 C62 32 98 32 98 40 L104 86 C104 92 56 92 56 86 Z" fill="#9b7a4a"/><path d="M62 40 C62 46 98 46 98 40" fill="none" stroke="#5e4a2c" stroke-width="2"/><path d="M70 34 C70 20 90 20 90 34" fill="none" stroke="#5e4a2c" stroke-width="4"/><circle cx="80" cy="90" r="4" fill="#5e4a2c"/></svg>`;
+    case "art": return `<svg class="thumb" viewBox="0 0 160 120" aria-hidden="true"><rect width="160" height="120" fill="#24262c"/><rect x="30" y="14" width="100" height="84" fill="#6b4a2c"/><rect x="36" y="20" width="88" height="72" fill="#cfa86a"/><path d="M36 70 L60 50 L80 62 L104 42 L124 58 L124 92 L36 92Z" fill="#6f7a5a"/><circle cx="104" cy="32" r="7" fill="#e9d29a"/>${dogS(56,62,.5,"#3a2416")}</svg>`;
+    default: return `<svg class="thumb" viewBox="0 0 160 120" aria-hidden="true"><rect width="160" height="120" fill="#E7DFCD"/></svg>`;
+  }
+}
+
+/* =========================================================
+   VUES
+   ========================================================= */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const badge = d => d.status==="lien" ? '<span class="badge ok">Consultable</span>' : d.status==="std" ? '<span class="badge ok">Interactif</span>' : '<span class="badge">À verser</span>';
+const docCard = d => `<button class="doc" data-doc="${d.id}">${thumb(d.thumb)}<span class="meta"><span class="k">${esc(d.type)}</span><span class="ti">${esc(d.title)}</span><span class="rf">${esc(d.ref)}</span>${badge(d)}</span></button>`;
+
+const VIEWS = {
+  origines(){
+    const docs = DOCS.filter(d=>d.space===1);
+    return `<span class="numeral" aria-hidden="true">I</span>
+    <p class="eyebrow">Premier espace</p>
+    <h2>Il vient de loin</h2>
+    <p class="co">Vene da luntanu</p>
+    <p class="lede">Bien avant les livres généalogiques, le Cursinu vivait au rythme des villages. Chien de troupeau, de garde et de chasse, il a partagé le travail des bergers jusqu'au milieu du XX<sup>e</sup> siècle. L'exode rural et l'arrivée des races continentales l'ont ensuite fait reculer, au point de le rendre rare.</p>
+    <p class="muted">Ces écrans rassemblent les traces qui précèdent sa reconnaissance officielle&nbsp;: textes, articles, photographies anciennes, récits.</p>
+    <div class="sec">
+      <div class="sec-h"><h3>Frise chronologique</h3><span>XVIe s. → 2003</span></div>
+      <ol class="frise">
+        <li><span class="d">XVI<sup>e</sup> siècle</span><span class="t">Les chiens corses sont déjà connus dans l'île.</span></li>
+        <li><span class="d">Jusqu'aux années 1950</span><span class="t">Chien polyvalent des campagnes&nbsp;: bétail, garde, sanglier, renard, lièvre.</span></li>
+        <li><span class="d">Seconde moitié du XX<sup>e</sup> s.</span><span class="t">Les races du continent le concurrencent&nbsp;; ses effectifs s'effondrent.</span></li>
+        <li class="key"><span class="d">1989</span><span class="t">Création de l'association de sauvegarde du chien corse.</span></li>
+        <li><span class="d">Années de sauvegarde</span><span class="t">Recensement des sujets, sélection, travaux scientifiques dont la thèse vétérinaire de Martine Rigaud.</span></li>
+        <li class="key"><span class="d">2003</span><span class="t">Reconnaissance par la Société Centrale Canine. La suite est dans la casetta.</span></li>
+      </ol>
+    </div>
+    <div class="sec">
+      <div class="sec-h"><h3>Écrans d'archives</h3><span>${docs.length} documents</span></div>
+      <div class="screens">${docs.map(docCard).join("")}</div>
+    </div>`;
+  },
+  casetta(){
+    return `<span class="numeral" aria-hidden="true">II</span>
+    <p class="eyebrow">Deuxième espace</p>
+    <h2>A casetta di u Cursinu</h2>
+    <p class="co">La maisonnette du Cursinu</p>
+    <p class="lede">Le Cursinu pousse la porte de la casetta. Sous la voûte de pierre, on a rangé tout ce qui a conduit à sa reconnaissance&nbsp;: les livres, les films, le dossier officiel, les portraits d'aujourd'hui, les objets et les œuvres que l'île lui consacre.</p>
+    <div class="sec">
+      <button class="std-card" data-std="general"><span class="t"><b>Le standard en 3D</b><span>Tournez autour du Cursinu et explorez les 13 régions décrites par le standard.</span></span><span class="btn primary" style="position:relative;z-index:1">Ouvrir</span></button>
+    </div>
+    <div class="tabs" role="tablist" id="tabs">
+      ${[["bib","Bibliothèque"],["video","Vidéothèque"],["dossier","Reconnaissance"],["photo","Photothèque"],["objets","Objets & œuvres"]].map(([k,l],i)=>`<button role="tab" id="tab-${k}" aria-selected="${i===0}" data-tab="${k}">${l}</button>`).join("")}
+    </div>
+    <div id="tabBody"></div>`;
+  },
+  territoire(){
+    return `<span class="numeral" aria-hidden="true">III</span>
+    <p class="eyebrow">Troisième espace</p>
+    <h2>Le Cursinu dans son territoire</h2>
+    <p class="lede">En quittant la casetta, le chemin s'ouvre sur l'île entière. Chaque point de la carte garde une trace de sa présence&nbsp;: une anecdote, un témoignage, une photographie, une voix.</p>
+    <div class="sec map-wrap">
+      <div class="map">${mapSVG()}</div>
+      <div class="fiche" id="fiche"></div>
+    </div>
+    <p class="note" style="margin-top:14px">Les points marqués « exemple » sont des emplacements prêts à recevoir les témoignages collectés auprès des propriétaires, éleveurs et anciens.</p>`;
+  },
+  livre(){
+    return `<span class="numeral" aria-hidden="true">IV</span>
+    <p class="eyebrow">Dernier espace</p>
+    <h2>Le Cursinu s'éloigne</h2>
+    <p class="lede">Le soleil descend derrière la montagne. Le Cursinu reprend le sentier, comme il l'a toujours fait. Il laisse derrière lui ce qu'il nous a transmis&nbsp;: un chien, une mémoire, une manière d'habiter l'île.</p>
+    <div class="sec">
+      <div class="sec-h"><h3>Livre d'or</h3><span id="count"></span></div>
+      <form class="form" id="gb" novalidate>
+        <div class="row2">
+          <label for="gbName">Votre nom<input id="gbName" name="nom" maxlength="60" autocomplete="name" required></label>
+          <label for="gbPlace">Commune ou pays<input id="gbPlace" name="lieu" maxlength="60"></label>
+        </div>
+        <label for="gbMsg">Votre message<textarea id="gbMsg" name="message" maxlength="600" required placeholder="Un souvenir, un chien, un mot pour le Cursinu…"></textarea></label>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+          <span class="note" id="gbNote">Votre message sera visible par les autres visiteurs.</span>
+          <button class="btn primary" type="submit" id="gbSubmit">Signer le livre d'or</button>
+        </div>
+      </form>
+      <ul class="entries" id="entries"></ul>
+    </div>
+    <div class="sec">
+      <div class="sec-h"><h3>Poursuivre l'exploration</h3><span>la visite reste ouverte</span></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" data-std="general">Standard 3D</button>
+        <button class="btn" data-open-search>Recherche documentaire</button>
+        <button class="btn" data-go="2">Retourner à la casetta</button>
+      </div>
+    </div>
+    <p class="credits">Conception&nbsp;: Jean Dominique Rossi. Modèle 3D du standard réalisé avec la société Arobase. Avec la gratitude du musée envers les éleveurs, les propriétaires de cursini, le club de race, la Société Centrale Canine et tous ceux qui ont prêté leurs chiens, leurs photos et leurs dessins.</p>`;
+  }
+};
+
+const TABS = {
+  bib(){ const b = DOCS.filter(d=>d.tab==="bib"); return `<ol class="biblio">${b.map((d,i)=>`<li><button data-doc="${d.id}"><span class="n">${String(i+1).padStart(2,"0")}</span><span class="ti">${esc(d.title)}<span class="au">${esc(d.ref)}</span></span><span class="badge">${d.type}</span></button></li>`).join("")}</ol>`; },
+  video(){ return `<div class="screens">${DOCS.filter(d=>d.tab==="video").map(docCard).join("")}</div>`; },
+  dossier(){
+    return `<div class="fiche" style="margin-bottom:16px">
+      <p class="k">Le standard en bref</p>
+      <dl class="spec" style="margin-top:10px">
+        <dt>Groupe</dt><dd>Spitz et types primitifs (SCC, 2003)</dd>
+        <dt>Taille</dt><dd>Mâle 46 à 58 cm, femelle 46 à 55 cm</dd>
+        <dt>Poids</dt><dd>Mâle 23 à 28 kg, femelle 20 à 25 kg</dd>
+        <dt>Poil</dt><dd>Bien fourni, court à mi-long, parfois frangé</dd>
+        <dt>Robes</dt><dd><div class="swatches"><span class="sw"><i style="background:repeating-linear-gradient(100deg,#8a5a33 0 5px,#3a2416 5px 7px)"></i>Fauve bringé</span><span class="sw"><i style="background:#c9955a"></i>Fauve</span><span class="sw"><i style="background:radial-gradient(circle at 40% 40%,#b8a079,#4a3b2a)"></i>Sable charbonné</span><span class="sw"><i style="background:linear-gradient(#1e1916 60%,#c9955a 60%)"></i>Noir marqué</span></div><span class="note">Masque accepté ; panachure limitée à la poitrine et aux extrémités.</span></dd>
+      </dl>
+    </div>
+    <div class="screens">${DOCS.filter(d=>d.tab==="dossier").map(docCard).join("")}</div>`;
+  },
+  photo(){ return `<div class="screens">${DOCS.filter(d=>d.tab==="photo").map(docCard).join("")}</div>`; },
+  objets(){ return `<div class="screens">${DOCS.filter(d=>d.tab==="objets").map(docCard).join("")}</div>`; },
+};
+
+function mapSVG(){
+  const isle = "M205 8 C213 28 216 52 212 78 C209 98 207 112 211 128 C214 160 218 200 221 240 C223 280 222 320 218 350 C214 375 209 395 206 410 C202 430 196 448 186 466 C178 478 166 482 156 474 C148 464 140 452 130 440 C122 428 116 414 108 402 C100 394 92 390 86 384 C92 374 100 366 100 356 C90 352 78 350 66 342 C60 334 70 324 62 314 C54 304 58 292 60 282 C52 272 44 262 42 248 C38 234 34 222 36 212 C44 204 48 196 46 186 C52 172 62 158 72 150 C86 138 100 128 118 122 C130 118 142 118 152 114 C160 112 168 118 176 116 C180 104 184 88 188 70 C192 52 196 30 205 8 Z";
+  return `<svg viewBox="0 0 260 500" role="img" aria-label="Carte de la Corse et lieux de mémoire du Cursinu">
+    <path class="isle" d="${isle}"/>
+    <path class="relief" d="M90 170 C120 190 140 210 150 250 C160 290 170 330 175 380"/>
+    <path class="relief" d="M70 200 C100 215 115 240 128 270 C140 300 150 330 152 360"/>
+    <path class="relief" d="M120 140 C140 160 160 175 180 190"/>
+    <text x="236" y="250" font-family="IM Fell English,serif" font-style="italic" font-size="13" fill="rgba(244,239,230,.35)" transform="rotate(90 236 250)">Mer Tyrrhénienne</text>
+    <text x="14" y="420" font-family="IM Fell English,serif" font-style="italic" font-size="13" fill="rgba(244,239,230,.35)">Méditerranée</text>
+    ${PLACES.map(p=>`<g class="pt" tabindex="0" role="button" aria-label="${esc(p.name)} — ${esc(p.kind)}" data-place="${p.id}" transform="translate(${p.x} ${p.y})"><circle class="r" r="6"/><circle class="c" r="5.5"/><text x="${p.x>180?-9:9}" y="4" text-anchor="${p.x>180?"end":"start"}">${esc(p.name)}</text></g>`).join("")}
+  </svg>`;
+}
+function showPlace(id){
+  const p = PLACES.find(x=>x.id===id) || PLACES[0];
+  document.querySelectorAll(".map .pt").forEach(g=>g.classList.toggle("on", g.dataset.place===p.id));
+  const f = document.getElementById("fiche"); if(!f) return;
+  f.innerHTML = `<p class="k">${esc(p.kind)}</p><h3>${esc(p.title)}</h3><p class="place">${esc(p.name)}</p><p>${esc(p.text)}</p>${p.sample?'<span class="badge">Exemple · à recueillir</span>':""}${p.link?`<p><a class="btn" href="${p.link}" target="_blank" rel="noopener">Lire l'article ↗</a></p>`:""}`;
+}
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let cur = 0, busy = false; const seen = new Set([0]);
+let pendingStd = null, lastFocus = null;
+const panel = $("#panel"), scroll = $("#scroll"), hero = $("#hero"), hint = $("#dogHint");
+
+function buildRail(){
+  $("#rail").innerHTML = SPACES.map((s,i)=>`<li><button data-go="${i}" ${i===cur?'aria-current="step"':""} class="${seen.has(i)?"seen":""}" aria-label="${s.n?("Espace "+s.n+" — "):""}${s.short}"><span class="dot">${s.n||"◦"}</span><span class="lbl">${s.short}</span></button></li>`).join("");
+}
+$("#stations").innerHTML = SPACES.slice(1).map((s,i)=>`<button data-go="${i+1}"><span class="sn">${s.n}</span><span class="st">${s.sub}</span></button>`).join("");
+
+function render(){
+  document.body.classList.toggle("is-home", cur===0);
+  if(cur>0){
+    scroll.innerHTML = VIEWS[SPACES[cur].id]();
+    scroll.scrollTop = 0;
+    $("#prev").innerHTML = `<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>${cur===1?"Accueil":"Revenir"}`;
+    $("#next").innerHTML = cur===SPACES.length-1 ? 'Recommencer la visite' : `Suivre le Cursinu<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>`;
+    $("#where").textContent = `Espace ${SPACES[cur].n} sur IV`;
+    if(SPACES[cur].id==="casetta") setTab("bib");
+    if(SPACES[cur].id==="territoire") showPlace("appietto");
+    if(SPACES[cur].id==="livre") initGuestbook();
+  }
+  buildRail();
+  try{ history.replaceState(null,"", "#"+SPACES[cur].id); }catch(e){}
+}
+function showUI(){ hero.classList.toggle("out", cur!==0); panel.classList.toggle("out", cur===0); hint.style.opacity = (cur<4 && document.body.classList.contains("has3d") && !busy)? 1:0; }
+function hideUI(){ hero.classList.add("out"); panel.classList.add("out"); hint.style.opacity = 0; }
+function setTab(k){
+  document.querySelectorAll("#tabs [data-tab]").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===k));
+  $("#tabBody").innerHTML = TABS[k]();
+}
+const wait = ms => new Promise(r=>setTimeout(r, reduce?0:ms));
+async function goTo(n){
+  if(busy || n===cur || n<0 || n>=SPACES.length) return;
+  busy = true; closeModals(); hideUI();
+  sound.scene(n); sound.steps(true);
+  if(window.M3D) await window.M3D.travel(cur, n); else await wait(700);
+  sound.steps(false);
+  cur = n; seen.add(n); render();
+  busy = false;
+  await wait(150); showUI();
+  if(n===SPACES.length-1 && window.M3D) window.M3D.farewell();
+}
+function dogClicked(){ if(busy) return; sound.bark(); if(cur<SPACES.length-1) goTo(cur+1); }
+
+document.addEventListener("click", e=>{
+  const g = e.target.closest("[data-go]"); if(g){ goTo(+g.dataset.go); return; }
+  const s = e.target.closest("[data-std]"); if(s){ openStandard(s.dataset.std); return; }
+  const d = e.target.closest("[data-doc]"); if(d){ if(d.dataset.doc) openDoc(d.dataset.doc); return; }
+  const t = e.target.closest("[data-tab]"); if(t){ setTab(t.dataset.tab); return; }
+  const p = e.target.closest("[data-place]"); if(p){ showPlace(p.dataset.place); sound.chime(); return; }
+  if(e.target.closest("[data-open-search]")){ openSearch(); return; }
+  if(e.target.closest("[data-close]") || e.target.classList.contains("veil")){ closeModals(); }
+});
+document.addEventListener("keydown", e=>{
+  if(e.key==="Escape"){ if(!$("#viewer").hidden || !$("#search").hidden) closeModals(); else if(!$("#std").hidden) closeStandard(); return; }
+  const tag = (e.target.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="textarea") return;
+  if(e.target.closest && e.target.closest("[data-place]") && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); showPlace(e.target.closest("[data-place]").dataset.place); return; }
+  if(!$("#viewer").hidden || !$("#search").hidden || !$("#std").hidden) return;
+  if(e.key==="ArrowRight") goTo(cur+1);
+  if(e.key==="ArrowLeft") goTo(cur-1);
+});
+$("#next").addEventListener("click", ()=> cur===SPACES.length-1 ? goTo(0) : goTo(cur+1));
+$("#prev").addEventListener("click", ()=> goTo(cur-1));
+$("#btnHome").addEventListener("click", ()=> goTo(0));
+$("#homeBrand").addEventListener("click", ()=> goTo(0));
+$("#btnStd").addEventListener("click", ()=> $("#std").hidden ? openStandard("general") : closeStandard());
+
+/* ---------- standard 3D ---------- */
+function openStandard(region){
+  closeModals();
+  $("#std").hidden = false; $("#btnStd").setAttribute("aria-pressed","true");
+  renderRegs(region||"general");
+  if(window.M3D) window.M3D.openStandard(region||"general"); else { pendingStd = region||"general"; toast("Le modèle 3D se charge encore…"); }
+  $("#stdClose").focus();
+}
+function closeStandard(){
+  $("#std").hidden = true; $("#btnStd").setAttribute("aria-pressed","false");
+  if(window.M3D) window.M3D.closeStandard();
+  if(lastFocus && lastFocus.focus) lastFocus.focus();
+}
+function renderRegs(id){
+  $("#regs").innerHTML = REGIONS.map(r=>`<button data-reg="${r.id}" aria-pressed="${r.id===id}">${r.label}</button>`).join("");
+  const i = REGIONS.findIndex(r=>r.id===id), r = REGIONS[i];
+  $("#regCard").innerHTML = `<p class="eyebrow">Région ${i+1} sur ${REGIONS.length}</p><h3>${r.label}</h3><p>${r.text}</p>
+    <div class="reg-nav"><button class="btn" data-reg="${REGIONS[(i+REGIONS.length-1)%REGIONS.length].id}">← Précédente</button><button class="btn" data-reg="${REGIONS[(i+1)%REGIONS.length].id}">Suivante →</button></div>`;
+}
+function selectRegion(id){ renderRegs(id); if(window.M3D) window.M3D.focusRegion(id); }
+$("#std").addEventListener("click", e=>{ const b=e.target.closest("[data-reg]"); if(b) selectRegion(b.dataset.reg); });
+$("#stdClose").addEventListener("click", closeStandard);
+$("#stdReset").addEventListener("click", ()=> selectRegion("general"));
+$("#stdSpin").addEventListener("click", e=>{ const on = e.currentTarget.getAttribute("aria-pressed")!=="true"; e.currentTarget.setAttribute("aria-pressed", on); if(window.M3D) window.M3D.setSpin(on); });
+
+/* ---------- visionneuse de documents ---------- */
+function openDoc(id){
+  const d = DOCS.find(x=>x.id===id); if(!d) return;
+  if(d.status==="std"){ openStandard("general"); return; }
+  const sp = SPACES[d.space];
+  const frame = d.thumb ? thumb(d.thumb).replace('class="thumb"','') : "";
+  $("#viewerBody").innerHTML = `
+    <button class="icon-btn x" data-close aria-label="Fermer"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <p class="eyebrow">${esc(d.type)} · Espace ${sp.n} — ${esc(sp.short)}</p>
+    <h2 id="vTitle" style="font-size:32px">${esc(d.title)}</h2>
+    <p style="font-family:var(--f-mono);font-size:13px;color:var(--ink-soft);margin:6px 0 0">${esc(d.ref)}</p>
+    ${frame?`<div class="viewer-frame">${frame}</div>`:""}
+    <p>${esc(d.desc)}</p>
+    ${d.status==="lien"
+      ? `<a class="btn primary" href="${d.url}" target="_blank" rel="noopener">Consulter sur cursinu.corsica ↗</a>`
+      : `<div class="empty">Emplacement réservé. Ce document est à numériser puis à déposer depuis l'interface d'administration (PDF, photographie HD, vidéo ou son).</div>`}
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">${navDocs(d)}</div>`;
+  $("#viewer").hidden = false;
+  $("#viewerBody .x").focus();
+}
+function navDocs(d){
+  const list = DOCS.filter(x=>x.space===d.space && x.tab===d.tab);
+  const i = list.indexOf(d);
+  return `<button class="btn" ${i<=0?"disabled":""} data-doc="${list[i-1]?.id||""}">← Précédent</button><button class="btn" ${i>=list.length-1?"disabled":""} data-doc="${list[i+1]?.id||""}">Suivant →</button>`;
+}
+function closeModals(){
+  if($("#viewer").hidden && $("#search").hidden) return;
+  $("#viewer").hidden = true; $("#search").hidden = true;
+  if(lastFocus && lastFocus.focus) lastFocus.focus();
+}
+document.addEventListener("focusin", e=>{ if($("#viewer").hidden && $("#search").hidden && $("#std").hidden) lastFocus = e.target; });
+
+/* ---------- recherche ---------- */
+let filt = "Tous";
+function openSearch(){
+  $("#search").hidden = false;
+  const types = ["Tous", ...new Set(DOCS.map(d=>d.type)), "Lieux", "Standard"];
+  $("#filters").innerHTML = types.map(t=>`<button class="chip" aria-pressed="${t===filt}" data-f="${esc(t)}">${esc(t)}</button>`).join("");
+  runSearch(); $("#q").focus();
+}
+function norm(s){ return s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase(); }
+function runSearch(){
+  const q = norm($("#q").value.trim()); const rows = [];
+  if(filt!=="Lieux" && filt!=="Standard") DOCS.forEach(d=>{
+    if(filt!=="Tous" && d.type!==filt) return;
+    if(q && !norm(d.title+" "+d.ref+" "+d.desc+" "+d.type).includes(q)) return;
+    rows.push(`<li><button data-doc-s="${d.id}"><span><span class="rt">${esc(d.title)}</span><span class="rs">${esc(d.ref)}</span></span><span class="rk">${esc(d.type)} · ${SPACES[d.space].n}</span></button></li>`);
+  });
+  if(filt==="Tous"||filt==="Lieux") PLACES.forEach(p=>{
+    if(q && !norm(p.name+" "+p.title+" "+p.text+" "+p.kind).includes(q)) return;
+    rows.push(`<li><button data-place-s="${p.id}"><span><span class="rt">${esc(p.title)}</span><span class="rs">${esc(p.name)} — ${esc(p.kind)}</span></span><span class="rk">Carte · III</span></button></li>`);
+  });
+  if(filt==="Tous"||filt==="Standard") REGIONS.forEach(r=>{
+    if(q && !norm(r.label+" "+r.text).includes(q)) return;
+    rows.push(`<li><button data-reg-s="${r.id}"><span><span class="rt">${esc(r.label)}</span><span class="rs">${esc(r.text.slice(0,90))}…</span></span><span class="rk">Standard 3D</span></button></li>`);
+  });
+  $("#results").innerHTML = rows.length ? rows.join("") : `<li class="empty" style="margin-top:10px">Aucun résultat. Essayez un nom d'auteur, un lieu, une région du corps ou un type de document.</li>`;
+}
+$("#q").addEventListener("input", runSearch);
+$("#filters").addEventListener("click", e=>{ const c=e.target.closest("[data-f]"); if(!c) return; filt=c.dataset.f; document.querySelectorAll("#filters .chip").forEach(b=>b.setAttribute("aria-pressed", b.dataset.f===filt)); runSearch(); });
+$("#results").addEventListener("click", async e=>{
+  const d = e.target.closest("[data-doc-s]"), p = e.target.closest("[data-place-s]"), r = e.target.closest("[data-reg-s]");
+  if(d){ const doc = DOCS.find(x=>x.id===d.dataset.docS); $("#search").hidden=true; if(cur!==doc.space) await goTo(doc.space); if(doc.tab) setTab(doc.tab); openDoc(doc.id); }
+  if(p){ const id=p.dataset.placeS; $("#search").hidden=true; if(cur!==3) await goTo(3); showPlace(id); }
+  if(r){ $("#search").hidden=true; openStandard(r.dataset.regS); }
+});
+$("#btnSearch").addEventListener("click", openSearch);
+
+/* =========================================================
+   AMBIANCE SONORE (Web Audio, sans fichier)
+   ========================================================= */
+const sound = (()=>{
+  let ac=null, master=null, on=false, windG, streamG, birdT, bellT, stepT, sceneN=0;
+  function noiseBuf(){ const b=ac.createBuffer(1,ac.sampleRate*3,ac.sampleRate); const d=b.getChannelData(0); let l=0; for(let i=0;i<d.length;i++){ const w=Math.random()*2-1; l=(l+0.02*w)/1.02; d[i]=l*3.5; } return b; }
+  function start(){
+    ac = new (window.AudioContext||window.webkitAudioContext)();
+    master = ac.createGain(); master.gain.value=0; master.connect(ac.destination);
+    const nb = noiseBuf();
+    const ws=ac.createBufferSource(); ws.buffer=nb; ws.loop=true;
+    const wf=ac.createBiquadFilter(); wf.type="lowpass"; wf.frequency.value=520;
+    windG=ac.createGain(); windG.gain.value=.35;
+    const lfo=ac.createOscillator(); lfo.frequency.value=.07; const lg=ac.createGain(); lg.gain.value=260; lfo.connect(lg); lg.connect(wf.frequency); lfo.start();
+    ws.connect(wf); wf.connect(windG); windG.connect(master); ws.start();
+    const rs=ac.createBufferSource(); rs.buffer=nb; rs.loop=true; rs.playbackRate.value=2.4;
+    const rf=ac.createBiquadFilter(); rf.type="bandpass"; rf.frequency.value=1800; rf.Q.value=.6;
+    streamG=ac.createGain(); streamG.gain.value=0; rs.connect(rf); rf.connect(streamG); streamG.connect(master); rs.start();
+    birds(); bells();
+  }
+  function chirp(){ if(!on) return; const t=ac.currentTime; const o=ac.createOscillator(), g=ac.createGain(); const f=2400+Math.random()*1800; o.frequency.setValueAtTime(f,t); o.frequency.exponentialRampToValueAtTime(f*(.6+Math.random()*.8),t+.12); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.045,t+.02); g.gain.exponentialRampToValueAtTime(.0001,t+.16); o.connect(g); g.connect(master); o.start(t); o.stop(t+.2); }
+  function birds(){ clearTimeout(birdT); const dayish = sceneN>=1 && sceneN<=3; birdT=setTimeout(()=>{ if(on){ const n=1+Math.floor(Math.random()*4); for(let i=0;i<n;i++) setTimeout(chirp,i*140); } birds(); }, (dayish?1800:5200)+Math.random()*4000); }
+  function bell(base){ if(!on) return; const t=ac.currentTime; [1,2.4,3.9,5.4].forEach((m,i)=>{ const o=ac.createOscillator(), g=ac.createGain(); o.frequency.value=base*m; g.gain.setValueAtTime(.05/(i+1),t); g.gain.exponentialRampToValueAtTime(.0001,t+3.5-i*.5); o.connect(g); g.connect(master); o.start(t); o.stop(t+4); }); }
+  function bells(){ clearTimeout(bellT); bellT=setTimeout(()=>{ if(on && (sceneN===0||sceneN===4)){ bell(sceneN===4?392:523); setTimeout(()=>bell(sceneN===4?392:523),900);} bells(); }, 9000+Math.random()*9000); }
+  function step(){ if(!on) return; const t=ac.currentTime; const b=ac.createBufferSource(); b.buffer=ac.createBuffer(1,ac.sampleRate*.06,ac.sampleRate); const d=b.buffer.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3); const f=ac.createBiquadFilter(); f.type="bandpass"; f.frequency.value=900+Math.random()*500; const g=ac.createGain(); g.gain.value=.12; b.connect(f); f.connect(g); g.connect(master); b.start(t); }
+  function toggle(){
+    if(!ac) start();
+    on=!on; ac.resume && ac.resume();
+    master.gain.cancelScheduledValues(ac.currentTime); master.gain.linearRampToValueAtTime(on?.9:0, ac.currentTime+1.2);
+    $("#btnSound").setAttribute("aria-pressed", on);
+    if(on) scene_(sceneN);
+    toast(on? "Ambiance sonore : vent, oiseaux, rivière, cloches" : "Ambiance sonore coupée");
+  }
+  function scene_(n){ sceneN=n; if(!ac) return; const t=ac.currentTime; streamG.gain.linearRampToValueAtTime(n===3?.25:(n===1?.08:0), t+2); windG.gain.linearRampToValueAtTime(n===2?.12:.35, t+2); }
+  return {
+    toggle, scene:scene_,
+    steps(go){ clearInterval(stepT); if(go && on) stepT=setInterval(step, 190); },
+    bark(){ if(!on) return; const t=ac.currentTime; const o=ac.createOscillator(), g=ac.createGain(); o.type="sawtooth"; o.frequency.setValueAtTime(420,t); o.frequency.exponentialRampToValueAtTime(220,t+.13); const f=ac.createBiquadFilter(); f.type="lowpass"; f.frequency.value=1100; g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.12,t+.015); g.gain.exponentialRampToValueAtTime(.0001,t+.16); o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t+.2); },
+    chime(){ if(on) bell(880); }
+  };
+})();
+$("#btnSound").addEventListener("click", ()=>sound.toggle());
+
+let toastT;
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; t.style.opacity=1; clearTimeout(toastT); toastT=setTimeout(()=>{ t.style.opacity=0; setTimeout(()=>t.hidden=true,400); },2800); }
+
+/* =========================================================
+   LIVRE D'OR — partagé (db), repli sur l'appareil sinon
+   ========================================================= */
+let gb = {db:null, user:null, entries:[], local:false, canMod:false, ready:false, readonly:false};
+const LKEY="cursinu-livre-or";
+function localGet(){ try{ return JSON.parse(localStorage.getItem(LKEY)||"[]"); }catch(e){ return []; } }
+function localSet(a){ try{ localStorage.setItem(LKEY, JSON.stringify(a)); }catch(e){} }
+(async()=>{
+  try{
+    if(!window.claude || !window.claude.use){ gb.local=true; gb.ready=true; return; }
+    const [db,user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    gb.db=db; gb.user=user; gb.local=!db; gb.ready=true;
+    if(user){ try{ gb.canMod = !!(await user.canEdit()); }catch(e){} try{ if((await user.can("data.write"))===false) gb.readonly=true; }catch(e){} }
+    if(db){ db.collection("livre-or").orderBy("ts","desc").limit(300).onSnapshot(s=>{ gb.entries = s.docs.map(d=>({id:d.id, ...d.data()})); paintEntries(); }, ()=>{ gb.local=true; paintEntries(); }); }
+  }catch(e){ gb.local=true; gb.ready=true; }
+  if(SPACES[cur].id==="livre") initGuestbook();
+})();
+function initGuestbook(){
+  const form=$("#gb"); if(!form) return;
+  const note=$("#gbNote");
+  if(gb.readonly) note.textContent="La signature partagée est réservée aux contributeurs de cette page ; votre message restera sur cet appareil.";
+  else if(gb.local && gb.ready) note.textContent="Votre message est conservé sur cet appareil.";
+  form.onsubmit = async e=>{
+    e.preventDefault();
+    const nom=$("#gbName").value.trim(), lieu=$("#gbPlace").value.trim(), message=$("#gbMsg").value.trim();
+    if(!nom || !message){ toast("Indiquez votre nom et votre message."); (nom?$("#gbMsg"):$("#gbName")).focus(); return; }
+    const entry={nom:nom.slice(0,60), lieu:lieu.slice(0,60), message:message.slice(0,600), date:new Date().toISOString(), ts:Date.now()};
+    const btn=$("#gbSubmit"); btn.disabled=true;
+    const keepLocal = ()=>{ const a=localGet(); a.unshift({id:"l"+entry.ts, ...entry, local:true}); localSet(a); paintEntries(); };
+    try{
+      if(gb.db && !gb.local && !gb.readonly){ await gb.db.collection("livre-or").add(entry); toast("Merci, votre message est inscrit au livre d'or."); }
+      else { keepLocal(); toast("Merci, votre message est conservé sur cet appareil."); }
+      form.reset();
+    }catch(err){
+      if(err && err.code==="invalid_argument"){ gb.readonly=true; keepLocal(); toast("Signature partagée indisponible : message gardé sur cet appareil."); form.reset(); }
+      else if(err && err.code==="quota_exceeded"){ toast("Le livre d'or est plein pour le moment. Réessayez plus tard."); }
+      else toast("Le message n'a pas pu être envoyé. Réessayez dans un instant.");
+    }
+    btn.disabled=false;
+  };
+  paintEntries();
+}
+function paintEntries(){
+  const ul=$("#entries"); if(!ul) return;
+  const all=[...localGet(), ...gb.entries].sort((a,b)=>(b.ts||0)-(a.ts||0));
+  $("#count").textContent = all.length ? `${all.length} message${all.length>1?"s":""}` : "";
+  if(!all.length){ ul.innerHTML=`<li class="empty">Le livre d'or attend sa première page. Laissez un souvenir, le nom d'un chien, un mot pour le Cursinu.</li>`; return; }
+  const fmt=d=>{ try{ return new Date(d).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}); }catch(e){ return ""; } };
+  ul.innerHTML = all.map(x=>`<li class="entry"><q>${esc(x.message)}</q><div class="who"><b>${esc(x.nom)}</b>${x.lieu?`<span>${esc(x.lieu)}</span>`:""}<span>${fmt(x.date)}</span>${x.local?'<span class="badge">sur cet appareil</span>':""}${(gb.canMod && !x.local)?`<button class="del" data-del="${esc(x.id)}">Retirer</button>`:""}</div></li>`).join("");
+}
+document.addEventListener("click", async e=>{
+  const d=e.target.closest("[data-del]"); if(!d || !gb.db) return;
+  if(d.dataset.confirm!=="1"){ d.dataset.confirm="1"; d.textContent="Confirmer le retrait"; return; }
+  try{ await gb.db.doc("livre-or/"+d.dataset.del).delete(); toast("Message retiré."); }catch(err){ toast("Le message n'a pas pu être retiré."); }
+});
+
+/* ---------- démarrage ---------- */
+(function boot(){
+  const h=(location.hash||"").slice(1); const i=SPACES.findIndex(s=>s.id===h);
+  if(i>0){ cur=i; seen.add(i); }
+  render(); showUI();
+})();
+</script>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+/* =========================================================
+   LE MONDE 3D — paysage corse et Cursinu (modèle J.-D. Rossi & Arobase)
+   ========================================================= */
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
+import { Sky } from "three/addons/objects/Sky.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { mergeGeometries, mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
+
+const $ = s => document.querySelector(s);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const SMALL = innerWidth <= 760;
+const LOW = SMALL || (navigator.hardwareConcurrency||8) <= 4;
+window.M3D_LOADING = true;
+
+/* ---------------- outils ---------------- */
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const smooth = (a,b,v)=>{ const t=clamp((v-a)/(b-a),0,1); return t*t*(3-2*t); };
+const lerp = (a,b,t)=>a+(b-a)*t;
+function hash(x,y){ let h = (Math.imul(x,374761393) + Math.imul(y,668265263))|0; h = Math.imul(h ^ (h>>>13), 1274126177); return ((h ^ (h>>>16))>>>0)/4294967296; }
+function vnoise(x,y){ const xi=Math.floor(x), yi=Math.floor(y), xf=x-xi, yf=y-yi; const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+  const a=hash(xi,yi), b=hash(xi+1,yi), c=hash(xi,yi+1), d=hash(xi+1,yi+1); return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v; }
+function fbm(x,y,o){ let s=0,a=.5,f=1,n=0; for(let i=0;i<o;i++){ s+=a*vnoise(x*f,y*f); n+=a; a*=.5; f*=2.03; } return s/n; }
+function ridged(x,y,o){ let s=0,a=.5,f=1,n=0,w=1; for(let i=0;i<o;i++){ let r=1-Math.abs(vnoise(x*f,y*f)*2-1); r*=r; r*=w; w=clamp(r*1.6,0,1); s+=a*r; n+=a; a*=.5; f*=2.1; } return s/n; }
+let seed=20031989; const rnd=()=>{ seed=(seed*16807)%2147483647; return seed/2147483647; };
+
+/* ---------------- relief ---------------- */
+function baseH(x,z){
+  const d = Math.hypot(x, z+75);
+  let h = 30 + (fbm(x*.011,z*.011,4)-.5)*5 + (fbm(x*.05+7,z*.05,3)-.5)*1.4;
+  const mt = smooth(150,1000,d), west = smooth(30,1100,-x);
+  h += Math.pow(ridged(x*.00125+3.1, z*.00125+.7, 5),1.5)*760*mt*(1-.9*west);
+  h += (fbm(x*.0042,z*.0042,4)-.35)*110*mt;
+  h -= west*430;
+  h += (-Math.max(0,-x-4)*.24 + Math.max(0,x-5)*.09)*(1-mt);
+  const c = Math.hypot(x+2900, z+1300); h += Math.pow(Math.max(0,1-c/800),2)*420*west;
+  const c2 = Math.hypot(x+2200, z-1500); h += Math.pow(Math.max(0,1-c2/600),2)*300*west;
+  return h;
+}
+// le sentier
+const PATH = new THREE.CatmullRomCurve3([[0,0,12],[3,0,-8],[-4,0,-30],[2,0,-50],[-3,0,-72],[4,0,-95],[-2,0,-118],[1,0,-140],[-1,0,-168]].map(p=>new THREE.Vector3(...p)), false, "catmullrom", .5);
+const PN = 320, ps = [];
+for(let i=0;i<=PN;i++){ const u=i/PN, p=PATH.getPointAt(u), t=PATH.getTangentAt(u); ps.push({x:p.x,z:p.z,tx:t.x,tz:t.z,y:baseH(p.x,p.z)}); }
+for(let pass=0;pass<6;pass++) for(let i=1;i<PN;i++) ps[i].y = (ps[i-1].y+ps[i].y*2+ps[i+1].y)/4;
+const U = [0.035, 0.12, 0.205, 0.29, 0.375];   // stations rapprochées : le Cursinu trotte de l'une à l'autre
+const HOUSE_U = 0.217, FARE_END = 0.62;
+let house = null;
+function nearPath(x,z){
+  if(x<-45||x>45||z<-200||z>40) return {d:1e9,s:0,i:0};
+  let best=1e9, bi=0; for(let i=0;i<=PN;i+=2){ const dx=x-ps[i].x, dz=z-ps[i].z, dd=dx*dx+dz*dz; if(dd<best){best=dd;bi=i;} }
+  for(let i=Math.max(0,bi-2);i<=Math.min(PN,bi+2);i++){ const dx=x-ps[i].x, dz=z-ps[i].z, dd=dx*dx+dz*dz; if(dd<best){best=dd;bi=i;} }
+  const p=ps[bi]; const sx=-p.tz, sz=p.tx; // côté droit du sentier, celui de la caméra (s > 0)
+  return {d:Math.sqrt(best), s:(x-p.x)*sx+(z-p.z)*sz, i:bi};
+}
+function H(x,z){
+  let h = baseH(x,z);
+  const np = nearPath(x,z);
+  if(np.d<12) h = lerp(h, ps[np.i].y - .05, 1-smooth(1.1,7,np.d));
+  if(house){ const dh=Math.hypot(x-house.x,z-house.z); if(dh<9) h = lerp(h, house.y, 1-smooth(4.5,9,dh)); }
+  return h;
+}
+{ // emplacement de la casetta, de l'autre côté du sentier
+  const p=PATH.getPointAt(HOUSE_U), t=PATH.getTangentAt(HOUSE_U); const side=new THREE.Vector3(t.z,0,-t.x); // côté opposé à la caméra
+  const hp = p.clone().addScaledVector(side, 8.5).addScaledVector(t, -2);
+  house = {x:hp.x, z:hp.z, y:0, rot:Math.atan2(t.x,t.z)}; house.y = baseH(hp.x,hp.z);
+}
+
+/* ---------------- textures peintes ---------------- */
+function canvasTex(w,h,draw,srgb=true,repeat=true){
+  const c=document.createElement("canvas"); c.width=w; c.height=h; const g=c.getContext("2d"); draw(g,w,h);
+  const t=new THREE.CanvasTexture(c); if(srgb) t.colorSpace=THREE.SRGBColorSpace; if(repeat){ t.wrapS=t.wrapT=THREE.RepeatWrapping; } t.anisotropy=8; return t;
+}
+const detailTex = canvasTex(256,256,(g,w,h)=>{ const im=g.createImageData(w,h); for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const n = .55*fbm(x/14,y/14,3)+.3*vnoise(x/3,y/3)+.15*hash(x,y); const v=Math.round(170+n*85); const i=(y*w+x)*4; im.data[i]=im.data[i+1]=im.data[i+2]=v; im.data[i+3]=255; } g.putImageData(im,0,0); }, false);
+const stoneTex = canvasTex(512,512,(g,w,h)=>{ g.fillStyle="#6f675d"; g.fillRect(0,0,w,h); let y=0; while(y<h){ const rh=26+rnd()*22; let x=-rnd()*30; while(x<w){ const rw=34+rnd()*46; const v=120+rnd()*70|0, tint=rnd()*14|0; g.fillStyle=`rgb(${v+tint},${v+tint*0.6|0},${v-6})`; g.beginPath(); g.roundRect(x+2,y+2,rw-4,rh-4,9); g.fill(); g.fillStyle="rgba(0,0,0,.12)"; g.fillRect(x+3,y+rh-8,rw-6,5); x+=rw; } y+=rh; } });
+const roofTex = canvasTex(256,256,(g,w,h)=>{ g.fillStyle="#5b3326"; g.fillRect(0,0,w,h); for(let r=0;r<10;r++) for(let c=0;c<9;c++){ const x=c*30+(r%2)*15, y=r*26; const v=rnd(); g.fillStyle=`rgb(${150+v*50|0},${78+v*28|0},${52+v*18|0})`; g.beginPath(); g.ellipse(x+15,y+14,14,15,0,0,Math.PI); g.fill(); g.fillStyle="rgba(0,0,0,.25)"; g.fillRect(x,y+24,30,3); } });
+const pathTex = canvasTex(64,256,(g,w,h)=>{ const im=g.createImageData(w,h); for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const e=Math.abs(x/(w-1)*2-1); const a=1-smooth(.45,1,e + (vnoise(x/5,y/9)-.5)*.5); const n=.6*vnoise(x/4,y/4)+.4*hash(x,y); const i=(y*w+x)*4; im.data[i]=150+n*50; im.data[i+1]=128+n*42; im.data[i+2]=98+n*30; im.data[i+3]=a*235; } g.putImageData(im,0,0); });
+const cloudTex = canvasTex(256,128,(g,w,h)=>{ for(let i=0;i<40;i++){ const x=40+rnd()*176, y=50+rnd()*40, r=18+rnd()*34; const gr=g.createRadialGradient(x,y,0,x,y,r); gr.addColorStop(0,"rgba(255,255,255,.55)"); gr.addColorStop(1,"rgba(255,255,255,0)"); g.fillStyle=gr; g.fillRect(0,0,w,h); } }, true, false);
+
+/* ---------------- rendu ---------------- */
+const canvas = $("#world");
+let renderer;
+try{ renderer = new THREE.WebGLRenderer({canvas, antialias:!LOW, powerPreference:"high-performance"}); }
+catch(e){ document.body.classList.add("no3d"); $("#loader").hidden=true; throw e; }
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(SMALL? 46 : 36, 1, .1, 20000);
+scene.fog = new THREE.FogExp2(0xbfcad6, .00085);
+
+// ciel physique
+const sky = new Sky(); sky.scale.setScalar(15000); scene.add(sky);
+const skyU = sky.material.uniforms; skyU.mieCoefficient.value=.005; skyU.mieDirectionalG.value=.82;
+const envScene = new THREE.Scene(); const envSky = new Sky(); envSky.scale.setScalar(900); envScene.add(envSky);
+const pmrem = new THREE.PMREMGenerator(renderer); let envRT=null;
+function updateEnv(){ for(const k of ["turbidity","rayleigh","mieCoefficient","mieDirectionalG"]) envSky.material.uniforms[k].value = skyU[k].value; envSky.material.uniforms.sunPosition.value.copy(skyU.sunPosition.value);
+  const rt = pmrem.fromScene(envScene, 0, .1, 2000); if(envRT) envRT.dispose(); envRT=rt; scene.environment = rt.texture; }
+
+// lumières
+const hemi = new THREE.HemisphereLight(0xb7cde6, 0x4a4630, .55); scene.add(hemi);
+const sunL = new THREE.DirectionalLight(0xffffff, 3); sunL.castShadow = true;
+sunL.shadow.mapSize.set(LOW?1024:2048, LOW?1024:2048); const sc=sunL.shadow.camera; sc.left=-6; sc.right=6; sc.top=6; sc.bottom=-6; sc.near=.5; sc.far=80;
+sunL.shadow.bias = -.0004; sunL.shadow.normalBias = .03; scene.add(sunL); scene.add(sunL.target);
+
+/* ---------------- terrain ---------------- */
+const C = {maquis:[.22,.27,.13], maquis2:[.31,.33,.16], dry:[.66,.56,.34], rock:[.53,.46,.42], rock2:[.70,.64,.59], sand:[.80,.74,.60], dirt:[.55,.45,.33], snow:[.86,.86,.88]};
+for(const k in C) C[k]=C[k].map(v=>Math.pow(v,2.2));
+function colorize(geo, near){
+  const pos=geo.attributes.position, nor=geo.attributes.normal, n=pos.count, col=new Float32Array(n*3);
+  for(let i=0;i<n;i++){
+    const x=pos.getX(i), y=pos.getY(i), z=pos.getZ(i), ny=nor.getY(i);
+    const n1=fbm(x*.03,z*.03,3), n2=fbm(x*.008+11,z*.008,3);
+    let c=[0,0,0]; for(let j=0;j<3;j++){ c[j]=lerp(C.maquis[j],C.maquis2[j],n1); c[j]=lerp(c[j],C.dry[j],smooth(.36,.64,n2)*.85); }
+    const rock = clamp(smooth(.86,.62,ny) + smooth(260,520,y)*.8, 0, 1);
+    for(let j=0;j<3;j++) c[j]=lerp(c[j], lerp(C.rock[j],C.rock2[j],n1), rock);
+    const top = smooth(900,1150,y); for(let j=0;j<3;j++) c[j]=lerp(c[j],C.snow[j],top*.7);
+    const beach = 1-smooth(1.5,7,y); for(let j=0;j<3;j++) c[j]=lerp(c[j],C.sand[j],beach);
+    if(near){ const np=nearPath(x,z); const dd=1-smooth(.6,2.4,np.d); for(let j=0;j<3;j++) c[j]=lerp(c[j],C.dirt[j],dd*.85); }
+    col[i*3]=c[0]; col[i*3+1]=c[1]; col[i*3+2]=c[2];
+  }
+  geo.setAttribute("color", new THREE.BufferAttribute(col,3));
+}
+const PATCH = {cx:0, cz:-75, size:420};
+function makeTerrain(size, seg, cx, cz, near){
+  const g = new THREE.PlaneGeometry(size,size,seg,seg); g.rotateX(-Math.PI/2);
+  const p=g.attributes.position;
+  const half=PATCH.size/2-4;
+  for(let i=0;i<p.count;i++){ const x=p.getX(i)+cx, z=p.getZ(i)+cz; let y = near? H(x,z) : baseH(x,z);
+    if(!near){ const inside = Math.min(half-Math.abs(x-PATCH.cx), half-Math.abs(z-PATCH.cz)); if(inside>0) y -= 1.5 + 16*smooth(0,40,inside); }
+    p.setXYZ(i,x,y,z); }
+  g.computeVertexNormals(); colorize(g, near);
+  const uv=g.attributes.uv; for(let i=0;i<uv.count;i++) uv.setXY(i, p.getX(i)/(near?3.2:40), p.getZ(i)/(near?3.2:40));
+  const tex = detailTex.clone(); tex.needsUpdate=true;
+  const m = new THREE.MeshStandardMaterial({vertexColors:true, map:tex, roughness:.96, metalness:0, envMapIntensity:.55});
+  const mesh = new THREE.Mesh(g,m); mesh.receiveShadow = near; return mesh;
+}
+scene.add(makeTerrain(PATCH.size, LOW?210:360, PATCH.cx, PATCH.cz, true));
+scene.add(makeTerrain(9000, LOW?170:260, 0, -400, false));
+
+// mer
+const sea = new THREE.Mesh(new THREE.PlaneGeometry(40000,40000), new THREE.MeshStandardMaterial({color:0x1d4b5c, roughness:.08, metalness:.25, envMapIntensity:1.1}));
+sea.rotation.x=-Math.PI/2; sea.position.y=.6; scene.add(sea);
+
+// sentier
+{
+  const N=500, w=.85, verts=[], uvs=[], idx=[];
+  for(let i=0;i<=N;i++){ const u=i/N, p=PATH.getPointAt(u), t=PATH.getTangentAt(u); const s=new THREE.Vector3(-t.z,0,t.x);
+    const a=p.clone().addScaledVector(s,w), b=p.clone().addScaledVector(s,-w); a.y=H(a.x,a.z)+.06; b.y=H(b.x,b.z)+.06;
+    verts.push(a.x,a.y,a.z,b.x,b.y,b.z); uvs.push(0,u*PATH.getLength()/3.5,1,u*PATH.getLength()/3.5);
+    if(i<N){ const k=i*2; idx.push(k,k+1,k+2,k+1,k+3,k+2); } }
+  const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(verts,3)); g.setAttribute("uv",new THREE.Float32BufferAttribute(uvs,2)); g.setIndex(idx); g.computeVertexNormals();
+  const m=new THREE.MeshStandardMaterial({map:pathTex, transparent:true, depthWrite:false, roughness:1, polygonOffset:true, polygonOffsetFactor:-2});
+  const mesh=new THREE.Mesh(g,m); mesh.receiveShadow=true; scene.add(mesh);
+}
+
+/* ---------------- vent ---------------- */
+const windU = {value:0};
+function windify(mat, amp){
+  mat.onBeforeCompile = sh=>{ sh.uniforms.uTime = windU;
+    sh.vertexShader = "uniform float uTime;\n" + sh.vertexShader.replace("#include <begin_vertex>",
+      `#include <begin_vertex>
+       vec3 ip = vec3(instanceMatrix[3][0], 0.0, instanceMatrix[3][2]);
+       float sway = sin(uTime*1.7 + ip.x*.35 + ip.z*.27) + .5*sin(uTime*3.1 + ip.x*.9);
+       transformed.x += sway * ${amp.toFixed(3)} * position.y * position.y;
+       transformed.z += cos(uTime*1.3 + ip.z*.4) * ${(amp*.6).toFixed(3)} * position.y * position.y;`); };
+}
+
+/* ---------------- végétation ---------------- */
+const dummy = new THREE.Object3D(), tmpC = new THREE.Color();
+function scatter(count, tries, pick){ const out=[]; for(let k=0;k<tries && out.length<count;k++){ const r=pick(); if(r) out.push(r); } return out; }
+function nearRandom(){ const u=rnd(); const p=ps[Math.floor(u*PN)]; const sx=-p.tz, sz=p.tx; const lat=(rnd()*2-1)*60; const x=p.x - sx*lat + (rnd()-.5)*6, z=p.z - sz*lat + (rnd()-.5)*6; return {x,z}; }
+
+// herbes sèches au vent
+{
+  const g = new THREE.PlaneGeometry(.035,.42,1,4); g.translate(0,.21,0);
+  const pp=g.attributes.position; for(let i=0;i<pp.count;i++){ const y=pp.getY(i); pp.setX(i, pp.getX(i)*(1-y/.6)); }
+  const geo = mergeGeometries([g, g.clone().rotateY(Math.PI/3), g.clone().rotateY(-Math.PI/3)]);
+  const mat = new THREE.MeshStandardMaterial({side:THREE.DoubleSide, roughness:.9, envMapIntensity:.6}); windify(mat, reduce?0:.45);
+  const pts = scatter(LOW?9000:26000, 120000, ()=>{ const p=ps[Math.floor(rnd()*PN)]; const sx=-p.tz, sz=p.tx; const lat=(rnd()*2-1)*22; if(lat>-1.15 && lat<1.15) return null;
+    const x=p.x - sx*lat + (rnd()-.5)*2, z=p.z - sz*lat + (rnd()-.5)*2; const np=nearPath(x,z); if(np.d<1.1) return null; if(np.s>4) return null; const s = np.s>0? .28 : 1; return {x,z,s}; });
+  const im = new THREE.InstancedMesh(geo, mat, pts.length);
+  pts.forEach((p,i)=>{ dummy.position.set(p.x,H(p.x,p.z),p.z); dummy.rotation.set(0,rnd()*6.28,0); const s=(.5+rnd()*.6)*p.s; dummy.scale.set(s, s*(.8+rnd()*.6), s); dummy.updateMatrix(); im.setMatrixAt(i,dummy.matrix);
+    const dry=rnd(); tmpC.setRGB(lerp(.20,.62,dry), lerp(.26,.52,dry), lerp(.10,.28,dry), THREE.SRGBColorSpace); im.setColorAt(i,tmpC); });
+  im.receiveShadow = true; scene.add(im);
+}
+// buissons du maquis (lentisque, myrte, arbousier, immortelle)
+{
+  const lumps=[]; for(let k=0;k<5;k++){ const r=.32+rnd()*.22; const l=new THREE.IcosahedronGeometry(r,2); const lp=l.attributes.position;
+    for(let i=0;i<lp.count;i++){ const x=lp.getX(i),y=lp.getY(i),z=lp.getZ(i); const n=.8+.4*vnoise(x*9+k*3,z*9+y*7); lp.setXYZ(i,x*n,y*n*.85,z*n); }
+    const a=k/5*6.28+rnd(); l.translate(Math.cos(a)*.32*(k?1:0), r*.7+(k?0:.12), Math.sin(a)*.32*(k?1:0)); lumps.push(l); }
+  let base = mergeGeometries(lumps.map(l=>{ l.deleteAttribute('uv'); l.deleteAttribute('normal'); return mergeVertices(l); })); base.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({roughness:.92, flatShading:false, envMapIntensity:.6}); windify(mat, reduce?0:.05);
+  const pts = scatter(LOW?1600:3800, 40000, ()=>{ const {x,z}=nearRandom(); if(Math.abs(x-PATCH.cx)>200||Math.abs(z-PATCH.cz)>200) return null; const np=nearPath(x,z); if(np.d<3) return null; if(np.s>-3.5) return null; if(house && Math.hypot(x-house.x,z-house.z)<6.5) return null; return {x,z}; });
+  const im = new THREE.InstancedMesh(base, mat, pts.length);
+  pts.forEach((p,i)=>{ dummy.position.set(p.x,H(p.x,p.z)-.05,p.z); dummy.rotation.set(0,rnd()*6.28,0); const s=.45+Math.pow(rnd(),1.5)*1.3; dummy.scale.set(s*(.8+rnd()*.5), s*(.6+rnd()*.5), s*(.8+rnd()*.5)); dummy.updateMatrix(); im.setMatrixAt(i,dummy.matrix);
+    const r=rnd(); if(r<.07) tmpC.setRGB(.62,.55,.22,THREE.SRGBColorSpace); else if(r<.14) tmpC.setRGB(.30,.22,.20,THREE.SRGBColorSpace); else tmpC.setRGB(.13+rnd()*.08,.20+rnd()*.08,.09+rnd()*.04,THREE.SRGBColorSpace); im.setColorAt(i,tmpC); });
+  im.castShadow = !LOW; im.receiveShadow = true; scene.add(im);
+}
+// pins laricio sur les pentes
+{
+  const trunk = new THREE.CylinderGeometry(.18,.32,11,6); trunk.translate(0,5.5,0);
+  const crownParts=[]; for(let k=0;k<5;k++){ const c=new THREE.IcosahedronGeometry(1.6+rnd()*.8,1); c.scale(1.4,.55,1.4); c.translate((rnd()-.5)*2.4, 10.3+k*.65+rnd()*.5, (rnd()-.5)*2.4); crownParts.push(c); }
+  const crown = mergeGeometries(crownParts.map(c=>{ c.deleteAttribute('uv'); c.deleteAttribute('normal'); return mergeVertices(c); })); crown.computeVertexNormals();
+  const tM = new THREE.MeshStandardMaterial({color:0x5a4637, roughness:.95}); const cM = new THREE.MeshStandardMaterial({color:0x2c3a24, roughness:.9, envMapIntensity:.5});
+  const pts = scatter(LOW?700:1600, 60000, ()=>{ const a=rnd()*6.28, r=150+Math.pow(rnd(),1.4)*1500; const x=Math.cos(a)*r, z=-75+Math.sin(a)*r; if(nearPath(x,z).d<70) return null; const y=H(x,z); if(y<12||y>700) return null;
+    const sl = Math.abs(H(x+3,z)-y)+Math.abs(H(x,z+3)-y); if(sl>4.2) return null; if(house && Math.hypot(x-house.x,z-house.z)<12) return null; return {x,z,y}; });
+  const ti = new THREE.InstancedMesh(trunk,tM,pts.length), ci = new THREE.InstancedMesh(crown,cM,pts.length);
+  pts.forEach((p,i)=>{ dummy.position.set(p.x,p.y-.3,p.z); dummy.rotation.set(0,rnd()*6.28,0); const s=.7+rnd()*.8; dummy.scale.setScalar(s); dummy.updateMatrix(); ti.setMatrixAt(i,dummy.matrix); ci.setMatrixAt(i,dummy.matrix); tmpC.setRGB(.8+rnd()*.35,.85+rnd()*.3,.8+rnd()*.3); ci.setColorAt(i,tmpC); });
+  ti.castShadow = ci.castShadow = !LOW; scene.add(ti, ci);
+}
+// rochers de granite
+{
+  const g = new THREE.DodecahedronGeometry(1,1); const gp=g.attributes.position;
+  for(let i=0;i<gp.count;i++){ const x=gp.getX(i),y=gp.getY(i),z=gp.getZ(i); const n=.8+.4*vnoise(x*2.3+5,y*2.3+z*1.7); gp.setXYZ(i,x*n*1.2,y*n*.75,z*n); }
+  g.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({map:detailTex, roughness:.85, envMapIntensity:.7});
+  const pts = scatter(LOW?260:520, 20000, ()=>{ const {x,z}=nearRandom(); const np=nearPath(x,z); if(np.d<6 || np.s>-2.5) return null; if(house && Math.hypot(x-house.x,z-house.z)<6) return null; return {x,z}; });
+  const im = new THREE.InstancedMesh(g, mat, pts.length);
+  pts.forEach((p,i)=>{ const s=.18+Math.pow(rnd(),3)*1.25; dummy.position.set(p.x,H(p.x,p.z)+s*.15,p.z); dummy.rotation.set(rnd()*.4,rnd()*6.28,rnd()*.4); dummy.scale.setScalar(s); dummy.updateMatrix(); im.setMatrixAt(i,dummy.matrix);
+    const v=rnd(); tmpC.setRGB(.62+v*.15,.55+v*.12,.52+v*.1,THREE.SRGBColorSpace); im.setColorAt(i,tmpC); });
+  im.castShadow = true; im.receiveShadow = true; scene.add(im);
+}
+
+/* ---------------- la casetta ---------------- */
+const windowMats = [];
+{
+  const g = new THREE.Group(); g.position.set(house.x, house.y, house.z); g.rotation.y = house.rot + Math.PI/2;
+  const st = stoneTex.clone(); st.needsUpdate=true; st.repeat.set(2,1.3);
+  const wallM = new THREE.MeshStandardMaterial({map:st, roughness:.95});
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(5.6,3.2,4.4), wallM); walls.position.y=1.5; g.add(walls);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(6,.5,4.8), new THREE.MeshStandardMaterial({map:stoneTex, color:0x9a9184, roughness:1})); base.position.y=-.1; g.add(base);
+  const rt = roofTex.clone(); rt.needsUpdate=true; rt.repeat.set(3,2);
+  const roofM = new THREE.MeshStandardMaterial({map:rt, roughness:.85, side:THREE.DoubleSide});
+  for(const s of [-1,1]){ const r=new THREE.Mesh(new THREE.BoxGeometry(6.4,.12,2.75), roofM); r.position.set(0,3.55,s*1.12); r.rotation.x = s*.42; g.add(r); }
+  const gable = new THREE.Shape([new THREE.Vector2(-2.2,0),new THREE.Vector2(2.2,0),new THREE.Vector2(0,.95)]);
+  for(const s of [-1,1]){ const gm=new THREE.Mesh(new THREE.ShapeGeometry(gable), wallM); gm.rotation.y=Math.PI/2; gm.position.set(s*2.8,3.1,0); if(s<0) gm.rotation.y=-Math.PI/2; g.add(gm); }
+  const door = new THREE.Mesh(new THREE.BoxGeometry(.06,2,1), new THREE.MeshStandardMaterial({color:0x3d2a1e, roughness:.8})); door.position.set(2.83,1,0); g.add(door);
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(.12,.22,1.4), new THREE.MeshStandardMaterial({color:0x8b8378,roughness:1})); lintel.position.set(2.84,2.1,0); g.add(lintel);
+  for(const z of [-1.5,1.5]){ const wm=new THREE.MeshStandardMaterial({color:0x1a1410, emissive:0xffb35c, emissiveIntensity:0}); windowMats.push(wm); const w=new THREE.Mesh(new THREE.BoxGeometry(.06,.7,.6), wm); w.position.set(2.83,1.7,z); g.add(w); }
+  const chim = new THREE.Mesh(new THREE.BoxGeometry(.6,1.3,.6), wallM); chim.position.set(-1.8,4,.9); g.add(chim);
+  g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } });
+  scene.add(g);
+}
+
+/* ---------------- nuages et étoiles ---------------- */
+const cloudMats=[];
+for(let i=0;i<(LOW?14:26);i++){ const m=new THREE.SpriteMaterial({map:cloudTex, transparent:true, opacity:.75, fog:false, depthWrite:false}); cloudMats.push(m);
+  const s=new THREE.Sprite(m); const a=-Math.PI*.1 + (rnd()-.5)*Math.PI*1.6, r=1800+rnd()*4500; s.position.set(-Math.cos(a)*r, 520+rnd()*700, Math.sin(a)*r - 300); s.scale.set(900+rnd()*1400, 260+rnd()*260, 1); scene.add(s); }
+const starsG = new THREE.BufferGeometry(); { const v=[]; for(let i=0;i<1400;i++){ const th=rnd()*6.28, ph=Math.acos(rnd()*.9); v.push(Math.sin(ph)*Math.cos(th)*9000, Math.cos(ph)*9000, Math.sin(ph)*Math.sin(th)*9000); } starsG.setAttribute("position", new THREE.Float32BufferAttribute(v,3)); }
+const starsM = new THREE.PointsMaterial({size:1.6, sizeAttenuation:false, color:0xfff6e8, transparent:true, opacity:0, fog:false, depthWrite:false});
+scene.add(new THREE.Points(starsG, starsM));
+
+/* ---------------- heures du jour ---------------- */
+const P = [
+  {el:7, az:70,  turb:8,   ray:2.6, exp:.74, fog:"#c3a9ad", sun:"#ffbe94", sunI:2.4, hemi:"#8c8fb6", cloud:"#ffc2a8", stars:.35, win:1, dens:.0010},
+  {el:19,  az:48,  turb:6,   ray:1.6, exp:.52, fog:"#b8c6d4", sun:"#fff0d8", sunI:3.0, hemi:"#a9c0dd", cloud:"#ffffff", stars:0,   win:0, dens:.00085},
+  {el:58,  az:5,   turb:4.5, ray:1.0, exp:.46, fog:"#c2d2e0", sun:"#fffaf0", sunI:3.6, hemi:"#b7cde6", cloud:"#ffffff", stars:0,   win:0, dens:.0007},
+  {el:21,  az:-48, turb:7,   ray:1.8, exp:.52, fog:"#d4c3a8", sun:"#ffe0ac", sunI:3.0, hemi:"#c0c4cf", cloud:"#fff1d6", stars:0,   win:0, dens:.0009},
+  {el:4, az:-96, turb:10,  ray:3.0, exp:.72, fog:"#a97f80", sun:"#ff9a5e", sunI:2.1, hemi:"#6b5a7a", cloud:"#ff9e7a", stars:.6,  win:1, dens:.0011},
+];
+const cA=new THREE.Color(), cB=new THREE.Color();
+const sunDir = new THREE.Vector3();
+function applyTime(a,b,k){
+  const A=P[a], B=P[b], L=(x)=>lerp(A[x],B[x],k), Cm=(x)=>cA.set(A[x]).lerp(cB.set(B[x]),k).clone();
+  const el=L("el"), az=L("az");
+  sunDir.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90-el), THREE.MathUtils.degToRad(az));
+  skyU.sunPosition.value.copy(sunDir); skyU.turbidity.value=L("turb"); skyU.rayleigh.value=L("ray");
+  renderer.toneMappingExposure = L("exp");
+  scene.fog.color.copy(Cm("fog")); scene.fog.density = L("dens");
+  sunL.color.copy(Cm("sun")); sunL.intensity = L("sunI"); hemi.color.copy(Cm("hemi"));
+  const cc = Cm("cloud"); cloudMats.forEach(m=>m.color.copy(cc));
+  starsM.opacity = L("stars");
+  windowMats.forEach(m=>m.emissiveIntensity = L("win")*2.2);
+}
+
+/* ---------------- caméra ---------------- */
+function resize(){ const W=innerWidth,Hh=innerHeight; renderer.setPixelRatio(Math.min(LOW?1.25:1.6, devicePixelRatio||1)); renderer.setSize(W,Hh,false); camera.aspect=W/Hh; camera.updateProjectionMatrix(); }
+addEventListener("resize", resize); resize();
+function framing(space){ const sm = innerWidth<=760; if(sm) return {fx:.5, fy:.3}; return space===0? {fx:.64, fy:.66} : {fx:.27, fy:.64}; }
+function camPose(u, space){
+  const p=PATH.getPointAt(u), t=PATH.getTangentAt(u); p.y=H(p.x,p.z);
+  const side=new THREE.Vector3(t.z,0,-t.x).multiplyScalar(-1); // côté droit
+  const sm = innerWidth<=760;
+  const far = space===0? (sm?5:4.6) : (sm?4.2:3.6);
+  const pos = p.clone().addScaledVector(side, far).addScaledVector(t, space===0? 1.5 : 1.1); pos.y += space===0? 1.25 : 1.05;
+  const look = p.clone().addScaledVector(t,.3); look.y += .36;
+  pos.y = Math.max(pos.y, H(pos.x,pos.z)+.6);
+  return {pos, look};
+}
+
+/* ---------------- état de la marche ---------------- */
+const dogRoot = new THREE.Group(); scene.add(dogRoot);
+const st = {u:U[0], space:0, travel:null, fare:null, timeA:0, timeB:0, timeK:1, camPos:new THREE.Vector3(), camLook:new THREE.Vector3(), fx:.64, fy:.56, phase:0, amp:0, yawOff:-.55, op:0, envT:0};
+function setSpaceInstant(n){ st.u=U[n]; st.space=n; st.timeA=st.timeB=n; st.timeK=1; applyTime(n,n,1); updateEnv(); const c=camPose(st.u,n); st.camPos.copy(c.pos); st.camLook.copy(c.look); const f=framing(n); st.fx=f.fx; st.fy=f.fy; }
+setSpaceInstant(typeof cur==="number"? cur : 0);
+
+/* ---------------- boucle ---------------- */
+let model=null, guide=null, MODEL_H=68, tPrev=performance.now();
+const hintEl = $("#dogHint"), proj = new THREE.Vector3();
+const ease = k=>-(Math.cos(Math.PI*k)-1)/2;
+const gait = {phase:{value:0}, amp:{value:0}, wag:{value:0}, nod:{value:0}, look:{value:0}};
+function frame(t){
+  const dt=Math.min(.05,(t-tPrev)/1000); tPrev=t;
+  windU.value = t/1000;
+  let speed=0;
+  if(st.travel){ const T=st.travel; const k=reduce?1:clamp((t-T.t0)/T.ms,0,1), e=ease(k); const nu=lerp(T.from,T.to,e); speed=Math.abs(nu-st.u)/Math.max(dt,1e-3)*PATH.getLength(); st.u=nu; st.timeK=e;
+    if(t-st.envT>260){ st.envT=t; applyTime(st.timeA,st.timeB,st.timeK); updateEnv(); } else applyTime(st.timeA,st.timeB,st.timeK);
+    if(k>=1){ applyTime(st.timeB,st.timeB,1); updateEnv(); const r=T.res; st.travel=null; r(); } }
+  else if(st.fare){ const F=st.fare; const k=reduce?1:clamp((t-F.t0)/F.ms,0,1); const nu=lerp(F.from,F.to,k); speed=Math.abs(nu-st.u)/Math.max(dt,1e-3)*PATH.getLength(); st.u=nu; if(k>=1) st.fare=null; }
+  // chien
+  const p=PATH.getPointAt(Math.min(st.u,1)), tg=PATH.getTangentAt(Math.min(st.u,1)); p.y=H(p.x,p.z);
+  // allure : le trot suit la vitesse réelle du chien sur le sentier
+  const ampT = reduce? 0 : smooth(.15,1.4,speed);
+  st.amp += (ampT-st.amp)*Math.min(1,dt*(ampT>st.amp?6:3.5));
+  const stride = 1.15*Math.max(1, speed/3.6);
+  st.phase = (st.phase + speed*dt/stride) % 1;
+  const tt = t/1000, a = st.amp;
+  gait.phase.value = st.phase; gait.amp.value = a;
+  gait.wag.value = reduce? 0 : (1-a)*(Math.sin(tt*2.4)*.16 + Math.sin(tt*5.1)*.04) + a*Math.sin(st.phase*6.2832)*.14;
+  gait.nod.value = reduce? 0 : (1-a)*(Math.sin(tt*.55)*.05 + Math.max(0,Math.sin(tt*.21))*.08) + a*(Math.sin(st.phase*12.566)*.035 - .06);
+  gait.look.value = reduce? 0 : (1-a)*(Math.sin(tt*.31)*.22 + Math.sin(tt*.13)*.12);
+  const bob = (1-Math.cos(st.phase*12.566))*.5*a*.014, breath = (1-a)*Math.sin(tt*2.1)*.002;
+  dogRoot.position.copy(p); dogRoot.position.y += bob + breath;
+  const yawOff = (st.space===4 || st.fare)? 0 : (st.space===0? -.55 : -.32);
+  st.yawOff += ((a>.2? 0 : yawOff) - st.yawOff)*Math.min(1,dt*2.5);
+  dogRoot.rotation.set(Math.sin(st.phase*12.566)*.012*a, Math.atan2(tg.x,tg.z) + st.yawOff, Math.sin(st.phase*6.2832)*.015*a);
+  const fadeOut = st.space===4 && !st.travel ? smooth(FARE_END-.05, FARE_END, st.u) : 0;
+  const targetOp = model? (1-fadeOut) : 0; st.op += (targetOp-st.op)*Math.min(1,dt*3);
+  if(guide) guide.traverse(o=>{ if(o.isMesh && o.visible){ const ms=Array.isArray(o.material)?o.material:[o.material]; ms.forEach(m=>{ const tr=st.op<.985; if(m.transparent!==tr){ m.transparent=tr; m.needsUpdate=true; } m.opacity=st.op; }); } });
+  // caméra
+  const poseU = st.fare || (st.space===4 && !st.travel)? U[4] : st.u;
+  const pose = camPose(poseU, st.travel? st.travel.toSpace : st.space);
+  const kc = reduce? 1 : 1-Math.exp(-dt*(st.travel?3.2:2.2));
+  st.camPos.lerp(pose.pos,kc); st.camLook.lerp(pose.look,kc);
+  const f=framing(st.travel? st.travel.toSpace : st.space); st.fx+= (f.fx-st.fx)*kc; st.fy+=(f.fy-st.fy)*kc;
+  camera.position.copy(st.camPos); camera.lookAt(st.camLook);
+  const W=innerWidth, Hh=innerHeight; camera.setViewOffset(W,Hh,(.5-st.fx)*W,(.5-st.fy)*Hh,W,Hh);
+  // ombre qui suit le chien
+  sunL.position.copy(p).addScaledVector(sunDir, 40); sunL.target.position.copy(p);
+  renderer.render(scene, camera);
+  // bulle d'invitation
+  proj.copy(p); proj.y += .95; proj.project(camera);
+  hintEl.style.left = ((proj.x*.5+.5)*W)+"px"; hintEl.style.top = ((-proj.y*.5+.5)*Hh)+"px";
+}
+let stdOpen=false;
+function loop(t){ if(stdOpen && r2) frame2(t); else frame(t); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+$("#loaderLabel").textContent = "Le Cursinu arrive";
+
+/* ---------------- modèle du Cursinu ---------------- */
+const nodeName = o => (/^(bodypart_|ear_)/.test(o.name) || !o.parent)? o.name : o.parent.name;
+function regionOf(name){
+  const n = name.toLowerCase();
+  if(n.startsWith("ear_")) return "crane";
+  const m = n.match(/^bodypart_([a-z_\-]+?)(?:__\d+|\.\w+)?$/);
+  let k = m ? m[1] : "";
+  if(k==="reste_robe") return "robe";
+  if(k==="reste_general" || k==="reste") return "general";
+  if(k==="reste_peau") return "peau";
+  if(k==="poitrine-lignedessous") return "poitrine";
+  return k;
+}
+/* ---------------- marche du Cursinu ----------------
+   Le modèle n'a pas de squelette : chaque pièce (pattes avant, pattes arrière, queue, tête)
+   est déformée dans le shader autour de son articulation (épaule, hanche, genou, base de la queue, nuque). */
+const RIG_HEAD = `uniform mat4 uL2M; uniform mat4 uM2L; uniform int uMode; uniform vec3 uPivot; uniform float uMidX; uniform float uKnee;
+uniform float uPhase; uniform float uAmp; uniform float uWag; uniform float uNod; uniform float uLook;
+vec2 cRot(vec2 p, float a){ float c=cos(a), s=sin(a); return vec2(p.x*c - p.y*s, p.x*s + p.y*c); }
+`;
+const RIG_BODY = `
+{
+  vec3 q = (uL2M * vec4(transformed, 1.0)).xyz;
+  if(uMode==1 || uMode==2){
+    float sideA = q.x > uMidX ? 1.0 : 0.0;
+    float off = uMode==1 ? (sideA>0.5 ? 0.0 : 0.5) : (sideA>0.5 ? 0.5 : 0.0);   // trot : diagonales synchrones
+    float ph = (uPhase + off) * 6.2831853;
+    float drop = uPivot.y - q.y;
+    float w = smoothstep(-2.0, 8.0, drop);
+    float lift = max(0.0, cos(ph)) * uAmp;                     // la patte se lève quand elle avance
+    float wl = smoothstep(uKnee*0.65, uKnee*1.15, drop);       // sous le genou / le jarret
+    vec2 p = vec2(q.z - uPivot.z, q.y - uPivot.y);
+    float below = max(0.0, drop - uKnee*0.65);
+    p.y += lift * wl * below * 0.42;
+    p.x -= lift * wl * below * (uMode==1 ? 0.30 : 0.12);
+    p = cRot(p, sin(ph) * uAmp * 0.36 * w);
+    q.z = uPivot.z + p.x; q.y = uPivot.y + p.y;
+  } else if(uMode==3){
+    vec3 d = q - uPivot; float w = smoothstep(0.0, 20.0, length(d));
+    d.xz = cRot(d.xz, uWag * w);
+    q = uPivot + d;
+  } else if(uMode==4){
+    vec3 d = q - uPivot; float w = smoothstep(-5.0, 6.0, d.z);
+    vec2 zy = cRot(vec2(d.z, d.y), uNod * w); d.z = zy.x; d.y = zy.y;
+    d.xz = cRot(d.xz, uLook * w);
+    q = uPivot + d;
+  }
+  transformed = (uM2L * vec4(q, 1.0)).xyz;
+}
+`;
+function rigDog(root){
+  const mb = (meshes)=>{ const b=new THREE.Box3(); meshes.forEach(m=>b.expandByObject(m)); return b; };
+  const byName = n => { let f=null; root.traverse(o=>{ if(!f && o.name===n) f=o; }); if(!f) return []; const out=[]; f.traverse(o=>{ if(o.isMesh) out.push(o); }); return out; };
+  const midX = 1.0;
+  const setup = (meshes, mode, pivot, knee=20)=>{ meshes.forEach(mesh=>{
+    const L2M = mesh.matrixWorld.clone(), M2L = L2M.clone().invert();
+    const uni = {uL2M:{value:L2M}, uM2L:{value:M2L}, uMode:{value:mode}, uPivot:{value:pivot}, uMidX:{value:midX}, uKnee:{value:knee},
+      uPhase:gait.phase, uAmp:gait.amp, uWag:gait.wag, uNod:gait.nod, uLook:gait.look};
+    const hook = sh=>{ Object.assign(sh.uniforms, uni); sh.vertexShader = RIG_HEAD + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n"+RIG_BODY); };
+    const conv = m=>{ const c=m.clone(); c.onBeforeCompile=hook; c.customProgramCacheKey=()=>"cursinu-rig"; return c; };
+    mesh.material = Array.isArray(mesh.material)? mesh.material.map(conv) : conv(mesh.material);
+    const dm = new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking}); dm.onBeforeCompile=hook; dm.customProgramCacheKey=()=>"cursinu-rig-depth"; mesh.customDepthMaterial = dm;
+  }); };
+  const fl = byName("bodypart_membre_ante"), hl = byName("bodypart_membre_poste");
+  if(fl.length){ const b=mb(fl); setup(fl, 1, new THREE.Vector3(midX, b.max.y-9, (b.min.z+b.max.z)/2), 27); }
+  if(hl.length){ const b=mb(hl); setup(hl, 2, new THREE.Vector3(midX, b.max.y-8, (b.min.z+b.max.z)/2+1.5), 24); }
+  const tail = byName("bodypart_fouet");
+  if(tail.length){ const b=mb(tail); setup(tail, 3, new THREE.Vector3(midX, b.min.y+6, b.max.z-4)); }
+  const neck = new THREE.Vector3(midX, 56, 31);
+  ["bodypart_face","bodypart_crane__1","bodypart_crane__2","ear_left_1","ear_left_2","ear_right_1","ear_right_2","bodypart_cou"].forEach(n=>setup(byName(n), 4, neck));
+}
+
+const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
+const bar = $("#loadBar"), pct = $("#loadPct");
+let gltf;
+try{
+  gltf = await new Promise((res,rej)=>loader.load("assets/cursinu.glb", res, e=>{ if(e.total){ const q=Math.round(e.loaded/e.total*100); bar.style.width=q+"%"; pct.textContent=q+" %"; } }, rej));
+}catch(err){ console.warn("Modèle 3D indisponible", err); $("#loaderLabel").textContent="Modèle 3D indisponible"; window.M3D_LOADING=false; throw err; }
+model = gltf.scene; model.updateMatrixWorld(true);
+const hotspots = {}, parts = {};
+model.traverse(o=>{
+  if(!o.name) return; const reg=regionOf(nodeName(o));
+  if(o.isMesh){ if(o.geometry.attributes.position.count<=3){ o.visible=false; const v=new THREE.Vector3(); o.getWorldPosition(v); (hotspots[reg] ||= []).push(v); return; }
+    (parts[reg] ||= []).push(o); o.castShadow=true; o.receiveShadow=true; o.frustumCulled=false;
+    (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ m.side=THREE.DoubleSide; m.envMapIntensity=.9; if(m.map) m.map.anisotropy=8; }); }
+  else if(o.name.startsWith("bodypart_")){ const v=new THREE.Vector3(); o.getWorldPosition(v); (hotspots[reg] ||= []).push(v); }
+});
+const box = new THREE.Box3().setFromObject(model), center = box.getCenter(new THREE.Vector3()); MODEL_H = box.getSize(new THREE.Vector3()).y;
+rigDog(model);
+guide = model; guide.position.set(-center.x, -box.min.y, -center.z);
+const scaler = new THREE.Group(); scaler.scale.setScalar(.62/MODEL_H); scaler.add(guide); dogRoot.add(scaler);
+
+
+/* survol et clic */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function hitDog(ev){ ndc.set(ev.clientX/innerWidth*2-1, -(ev.clientY/innerHeight)*2+1); ray.setFromCamera(ndc, camera); return ray.intersectObject(guide, true).some(h=>h.object.visible); }
+let hovT=0;
+canvas.addEventListener("pointermove", ev=>{ const t=performance.now(); if(t-hovT<70) return; hovT=t; canvas.classList.toggle("hover", hitDog(ev)); });
+canvas.addEventListener("click", ev=>{ if(hitDog(ev)) dogClicked(); });
+
+/* =========================================================
+   VISIONNEUSE DU STANDARD
+   ========================================================= */
+const cv2 = $("#stdCanvas");
+let r2=null, s2, cam2, ctrl, spin=!reduce, focusAnim=null;
+const vParts = {}, vMats = new Map(), layer = $("#hsLayer");
+const GOLD = new THREE.Color("#D9B45B"), BLACK = new THREE.Color(0);
+function buildViewer(){
+  r2 = new THREE.WebGLRenderer({canvas:cv2, alpha:true, antialias:true});
+  r2.outputColorSpace = THREE.SRGBColorSpace; r2.toneMapping = THREE.ACESFilmicToneMapping; r2.toneMappingExposure = 1.0;
+  r2.shadowMap.enabled = true; r2.shadowMap.type = THREE.PCFSoftShadowMap;
+  s2 = new THREE.Scene();
+  const pm = new THREE.PMREMGenerator(r2); s2.environment = pm.fromScene(new RoomEnvironment(), .04).texture;
+  cam2 = new THREE.PerspectiveCamera(30, 1, 1, 5000);
+  const key = new THREE.DirectionalLight(0xfff0dc, 2.2); key.position.set(120,220,140); key.castShadow=true; key.shadow.mapSize.set(2048,2048);
+  Object.assign(key.shadow.camera, {left:-90,right:90,top:90,bottom:-90,near:10,far:600}); key.shadow.bias=-.0005; s2.add(key);
+  const back = new THREE.DirectionalLight(0xd9b45b, 1.2); back.position.set(-200,120,-220); s2.add(back);
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(95, 96), new THREE.ShadowMaterial({opacity:.38})); floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; s2.add(floor);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(78, 78.8, 128), new THREE.MeshBasicMaterial({color:0xD9B45B, transparent:true, opacity:.45, side:THREE.DoubleSide})); ring.rotation.x=-Math.PI/2; ring.position.y=.2; s2.add(ring);
+  const vm = model.clone(true); vm.scale.setScalar(1); vm.position.set(-center.x, -box.min.y, -center.z);
+  vm.traverse(o=>{ if(!o.isMesh || !o.visible) return; o.customDepthMaterial=undefined; const reg=regionOf(nodeName(o));
+    o.material = Array.isArray(o.material)? o.material.map(m=>m.clone()) : o.material.clone();
+    (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ m.transparent=false; m.opacity=1; m.envMapIntensity=1; vMats.set(m,{color:m.color.clone()}); });
+    o.castShadow=true; (vParts[reg] ||= []).push(o); });
+  s2.add(vm);
+  ctrl = new OrbitControls(cam2, cv2); ctrl.enableDamping=true; ctrl.minDistance=40; ctrl.maxDistance=320; ctrl.maxPolarAngle=Math.PI*.5; ctrl.enablePan=false;
+  ctrl.addEventListener("start", ()=>{ focusAnim=null; });
+  cam2.position.set(140,70,150); ctrl.target.set(0,MODEL_H*.5,0);
+  layer.innerHTML = REGIONS.map(r=>`<button class="hs" data-reg="${r.id}" aria-label="${r.label}"></button><span class="hs-label">${r.label}</span>`).join("");
+  addEventListener("resize", resize2); resize2();
+}
+function resize2(){ if(!r2) return; const rect=cv2.getBoundingClientRect(); r2.setPixelRatio(Math.min(2,devicePixelRatio||1)); r2.setSize(rect.width,rect.height,false); cam2.aspect=rect.width/Math.max(1,rect.height); cam2.updateProjectionMatrix(); }
+const local = p => new THREE.Vector3(p.x-center.x, p.y-box.min.y, p.z-center.z);
+const regionPts = {};
+function regionPoint(id){
+  if(regionPts[id]) return regionPts[id];
+  let v; const list=hotspots[id];
+  if(list && list.length) v=local(list[0]);
+  else if(vParts[id]){ const b=new THREE.Box3(); vParts[id].forEach(m=>b.expandByObject(m)); v=b.getCenter(new THREE.Vector3()); }
+  else v=new THREE.Vector3(0,MODEL_H*.6,0);
+  return regionPts[id]=v;
+}
+const WHOLE = ["general","robe","peau"];
+function highlight(id){
+  const whole=WHOLE.includes(id);
+  for(const [reg,meshes] of Object.entries(vParts)){ const on=whole||reg===id;
+    meshes.forEach(o=>(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ m.color.copy(vMats.get(m).color).multiplyScalar(on?1:.3); if(m.emissive) m.emissive.copy(on&&!whole?GOLD:BLACK).multiplyScalar(on&&!whole?.12:0); })); }
+  layer.querySelectorAll(".hs").forEach(b=>b.classList.toggle("on", b.dataset.reg===id));
+}
+function focusRegion(id){
+  highlight(id); const whole=WHOLE.includes(id); let target, dist;
+  if(whole||!vParts[id]){ target=new THREE.Vector3(0,MODEL_H*.5,0); dist=210; }
+  else { const b=new THREE.Box3(); vParts[id].forEach(m=>b.expandByObject(m)); target=b.getCenter(new THREE.Vector3()); const s=b.getSize(new THREE.Vector3()); dist=THREE.MathUtils.clamp(Math.max(s.x,s.y,s.z)*2.6,70,210); }
+  const dir = cam2.position.clone().sub(ctrl.target).normalize();
+  if(id==="face"||id==="crane") dir.set(.55,.25,.8).normalize();
+  if(id==="fouet"||id==="genital") dir.set(.45,.25,-.85).normalize();
+  if(["membre_ante","membre_poste","ligne-dessous","poitrine"].includes(id)) dir.set(1,.12,.15).normalize();
+  if(id==="ligne-dessus") dir.set(.9,.55,.1).normalize();
+  if(whole) dir.set(.75,.3,.6).normalize();
+  focusAnim={t0:performance.now(), ms:reduce?0:1100, fromP:cam2.position.clone(), fromT:ctrl.target.clone(), toT:target, toP:target.clone().add(dir.multiplyScalar(dist))};
+}
+const v3=new THREE.Vector3();
+function frame2(t){
+  if(focusAnim){ const k=focusAnim.ms?Math.min(1,(t-focusAnim.t0)/focusAnim.ms):1, e=1-Math.pow(1-k,3); cam2.position.lerpVectors(focusAnim.fromP,focusAnim.toP,e); ctrl.target.lerpVectors(focusAnim.fromT,focusAnim.toT,e); if(k>=1) focusAnim=null; }
+  ctrl.autoRotate = spin && !focusAnim; ctrl.autoRotateSpeed=.6; ctrl.update(); r2.render(s2,cam2);
+  const rect=cv2.getBoundingClientRect();
+  layer.querySelectorAll(".hs").forEach(b=>{ const p=regionPoint(b.dataset.reg); v3.copy(p).project(cam2);
+    const x=(v3.x*.5+.5)*rect.width, y=(-v3.y*.5+.5)*rect.height; b.style.left=x+"px"; b.style.top=y+"px"; const lab=b.nextElementSibling; lab.style.left=x+"px"; lab.style.top=y+"px";
+    const toP=p.clone().sub(cam2.position).normalize(), n=p.clone().setY(0).normalize(); b.classList.toggle("behind", n.dot(toP)>.35); });
+}
+
+/* =========================================================
+   API pour la page
+   ========================================================= */
+window.M3D = {
+  travel(from, to){
+    return new Promise(res=>{
+      st.fare=null; st.timeA=from; st.timeB=to; st.timeK=0;
+      const dist=Math.abs(U[to]-st.u)*PATH.getLength();
+      st.travel={from:st.u, to:U[to], t0:performance.now(), ms: reduce?0 : clamp(dist/3.3*1000, 2800, 9000), toSpace:to, res:()=>{ st.space=to; res(); }};
+    });
+  },
+  farewell(){ if(reduce){ st.u=FARE_END; return; } setTimeout(()=>{ if(st.space===4 && !st.travel) st.fare={from:st.u, to:FARE_END, t0:performance.now(), ms:(FARE_END-st.u)*PATH.getLength()/3.2*1000}; }, 1800); },
+  openStandard(id){ if(!r2) buildViewer(); stdOpen=true; resize2(); focusRegion(id||"general"); },
+  closeStandard(){ stdOpen=false; },
+  focusRegion, setSpin(on){ spin=on; },
+};
+document.body.classList.add("has3d");
+$("#loader").style.opacity=0; setTimeout(()=>$("#loader").hidden=true,700);
+window.M3D_LOADING=false;
+if(typeof showUI==="function") showUI();
+if(pendingStd){ window.M3D.openStandard(pendingStd); pendingStd=null; }
+if(cur===4) window.M3D.farewell();
+
+</script>
+</body>
+</html>
