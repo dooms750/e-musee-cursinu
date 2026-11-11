@@ -17,7 +17,7 @@ Le visiteur suit le Cursinu en 3D le long d'un sentier, dans un paysage corse do
 - Paysage 3D : relief, mer, ciel physique, brume, pins laricio, herbes au vent, ombres.
 - Maquis corse le long du sentier : arbousiers chargés d'arbouses, lentisques, cistes en fleurs, bruyère arborescente, coussins d'immortelle, boules de granit.
 - La casetta : bergerie basse montée pierre par pierre (moellons de granit en relief, angles harpés, linteaux monolithes), toit de tuiles canal posées une à une, porte en planches, fenêtres en bois, lierre, olivier et blocs de granit.
-- Cursinu en 3D avec une allure calquée sur une vidéo de référence : pas tranquille à quatre temps (environ 1,5 foulée par seconde, carpe et jarret fléchis au soutien), foulée calculée sur la longueur des pattes pour que les pieds ne glissent pas, démarrage et arrêt progressifs ; trot seulement pour sauter plusieurs espaces. Tête, queue et corps accompagnent le pas ; bruits de pas synchronisés.
+- Cursinu en 3D animé par un squelette à trois segments par patte (épaule-coude-carpe, hanche-grasset-jarret) piloté par cinématique inverse : les pieds suivent le sol sans glisser, le carpe et le jarret se plient en soutien, les postérieurs poussent en fin d'appui. Allure calquée sur une vidéo de référence : pas tranquille (environ 1,6 foulée par seconde), trot seulement pour sauter plusieurs espaces. Tête, queue et corps accompagnent le pas ; bruits de pas synchronisés.
 - Visionneuse du standard : 13 régions du corps, rotation libre, points de repère.
 - Recherche documentaire, navigation au clavier (flèches), ambiance sonore générée (vent, oiseaux, rivière, cloches).
 - Site responsive (ordinateur, tablette, téléphone).
