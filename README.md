@@ -14,8 +14,10 @@ Le visiteur suit le Cursinu en 3D le long d'un sentier, dans un paysage corse do
 
 ## Fonctionnalités
 
-- Paysage 3D : relief, mer, ciel physique, brume, maquis, pins laricio, herbes au vent, ombres.
-- Cursinu en 3D avec animation de trot calculée (pattes, queue, tête) et mouvements au repos.
+- Paysage 3D : relief, mer, ciel physique, brume, pins laricio, herbes au vent, ombres.
+- Maquis corse le long du sentier : arbousiers chargés d'arbouses, lentisques, cistes en fleurs, bruyère arborescente, coussins d'immortelle, boules de granit.
+- La casetta : bergerie basse en moellons de granit, toit de tuiles canal, menuiseries en bois, olivier et blocs de granit adossés.
+- Cursinu en 3D avec une allure calquée sur une vidéo de référence : pas à quatre temps (carpe et jarret fléchis pendant le soutien) au départ et à l'arrivée, trot quand il prend de la vitesse ; queue, tête et roulis du corps animés, mouvements au repos.
 - Visionneuse du standard : 13 régions du corps, rotation libre, points de repère.
 - Recherche documentaire, navigation au clavier (flèches), ambiance sonore générée (vent, oiseaux, rivière, cloches).
 - Site responsive (ordinateur, tablette, téléphone).
