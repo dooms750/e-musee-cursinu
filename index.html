@@ -1423,7 +1423,7 @@ function camPose(u, space){
 
 /* ---------------- état de la marche ---------------- */
 const dogRoot = new THREE.Group(); scene.add(dogRoot);
-const st = {u:U[0], space:0, travel:null, fare:null, timeA:0, timeB:0, timeK:1, camPos:new THREE.Vector3(), camLook:new THREE.Vector3(), fx:.64, fy:.56, phase:0, amp:0, trot:0, yawOff:-.55, op:0, envT:0};
+const st = {u:U[0], space:0, travel:null, fare:null, timeA:0, timeB:0, timeK:1, camPos:new THREE.Vector3(), camLook:new THREE.Vector3(), fx:.64, fy:.56, phase:0, amp:0, trot:0, yawOff:-.55, head:null, turn:0, toTurn:0, op:0, envT:0};
 function setSpaceInstant(n){ st.u=U[n]; st.space=n; st.timeA=st.timeB=n; st.timeK=1; applyTime(n,n,1); updateEnv(); const c=camPose(st.u,n); st.camPos.copy(c.pos); st.camLook.copy(c.look); const f=framing(n); st.fx=f.fx; st.fy=f.fy; }
 setSpaceInstant(typeof cur==="number"? cur : 0);
 
@@ -1465,7 +1465,7 @@ function solveLeg(R, ph, S, D, lift, front, a, out){
 // déplacement : accélération douce, marche régulière, freinage pour s'arrêter pile à la station
 function advance(job, dt){
   const len = PATH.getLength(), rem = job.dist - job.s;
-  const vT = Math.min(job.v, Math.sqrt(2*.5*Math.max(rem,0)));
+  const vT = st.toTurn > .7 ? 0 : Math.min(job.v, Math.sqrt(2*.5*Math.max(rem,0)));   // il finit de se retourner avant de partir
   job.vel += clamp(vT - job.vel, -1.2*dt, .6*dt);
   if(rem > .01) job.vel = Math.max(job.vel, .05);
   job.s = Math.min(job.dist, job.s + job.vel*dt);
@@ -1485,7 +1485,16 @@ function frame(t){
   // chien
   const p=PATH.getPointAt(Math.min(st.u,1)), tg=PATH.getTangentAt(Math.min(st.u,1)); p.y=H(p.x,p.z);
   // allure : petits pas au démarrage, pas posé ensuite ; trot seulement pour une longue distance
-  const ampT = reduce? 0 : clamp(speed/.6, 0, 1);
+  // cap : face à la direction du déplacement (il se retourne pour revenir en arrière), puis de nouveau dans le sens de la visite à l'arrêt
+  const dir = st.travel ? Math.sign(st.travel.to - st.travel.from) || 1 : 1;
+  const yawOff = (st.space===4 || st.fare)? 0 : (st.space===0? -.55 : -.32);
+  st.yawOff += (((speed>.15 || st.travel)? 0 : yawOff) - st.yawOff)*Math.min(1,dt*2);
+  const headT = Math.atan2(tg.x*dir, tg.z*dir) + st.yawOff;
+  if(st.head===null || reduce) st.head = headT;
+  let dh = headT - st.head; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+  const step = Math.sign(dh)*Math.min(Math.abs(dh), 2.2*dt);   // il pivote à 2,2 rad/s au plus
+  st.head += step; st.turn += (Math.abs(step)/Math.max(dt,1e-3) - st.turn)*Math.min(1,dt*6); st.toTurn = Math.abs(dh) - Math.abs(step);
+  const ampT = reduce? 0 : Math.max(clamp(speed/.6, 0, 1), clamp(st.turn/1.2, 0, .6));   // il piétine en pivotant sur place
   st.amp += (ampT-st.amp)*Math.min(1,dt*(ampT>st.amp?5:3));
   const trotT = smooth(1.25,1.8,speed); st.trot += (trotT-st.trot)*Math.min(1,dt*1.5);
   const a = st.amp, tr = st.trot, tt = t/1000;
@@ -1508,9 +1517,7 @@ function frame(t){
   const bob = (1-Math.cos(ph*12.566))*.5*a*lerp(.007,.012,tr), breath = (1-a)*Math.sin(tt*2.1)*.002;
   dogRoot.position.copy(p); dogRoot.position.y += bob + breath;
   const sideV = new THREE.Vector3(tg.z,0,-tg.x).multiplyScalar(Math.sin(ph*6.2832)*.008*a*(1-tr)); dogRoot.position.add(sideV);
-  const yawOff = (st.space===4 || st.fare)? 0 : (st.space===0? -.55 : -.32);
-  st.yawOff += ((a>.2? 0 : yawOff) - st.yawOff)*Math.min(1,dt*2);
-  dogRoot.rotation.set(Math.sin(ph*12.566 + 1.2)*.010*a, Math.atan2(tg.x,tg.z) + st.yawOff + Math.sin(ph*6.2832+.5)*.015*a, Math.sin(ph*6.2832)*lerp(.02,.012,tr)*a);
+  dogRoot.rotation.set(Math.sin(ph*12.566 + 1.2)*.010*a, st.head + Math.sin(ph*6.2832+.5)*.015*a, Math.sin(ph*6.2832)*lerp(.02,.012,tr)*a);
   const fadeOut = st.space===4 && !st.travel ? smooth(FARE_END-.05, FARE_END, st.u) : 0;
   const targetOp = model? (1-fadeOut) : 0; st.op += (targetOp-st.op)*Math.min(1,dt*3);
   if(guide) guide.traverse(o=>{ if(o.isMesh && o.visible){ const ms=Array.isArray(o.material)?o.material:[o.material]; ms.forEach(m=>{ const tr=st.op<.985; if(m.transparent!==tr){ m.transparent=tr; m.needsUpdate=true; } m.opacity=st.op; }); } });
